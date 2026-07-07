@@ -18,8 +18,18 @@ class KosMap extends StatelessWidget {
     required this.points,
     this.destinations = const [],
     this.selectedLocation,
+    this.userLocation,
+    this.activeDestinationIndex,
+    this.mapController,
+    this.initialZoom,
+    this.minZoom,
+    this.maxZoom,
+    this.enableRotation = false,
     this.showUserMarker = false,
     this.interactive = true,
+    this.onPositionChanged,
+    this.onMapEvent,
+    this.onMapReady,
     this.onTap,
     this.onRecenter,
   });
@@ -27,8 +37,18 @@ class KosMap extends StatelessWidget {
   final List<LatLng> points;
   final List<DestinationDraft> destinations;
   final LocationSelection? selectedLocation;
+  final Coordinates? userLocation;
+  final int? activeDestinationIndex;
+  final MapController? mapController;
+  final double? initialZoom;
+  final double? minZoom;
+  final double? maxZoom;
+  final bool enableRotation;
   final bool showUserMarker;
   final bool interactive;
+  final PositionCallback? onPositionChanged;
+  final MapEventCallback? onMapEvent;
+  final VoidCallback? onMapReady;
   final ValueChanged<Coordinates>? onTap;
   final VoidCallback? onRecenter;
 
@@ -40,6 +60,7 @@ class KosMap extends StatelessWidget {
         if (destination.coordinates != null)
           destination.coordinates!.toLatLng(),
       if (selectedLocation != null) selectedLocation!.coordinates.toLatLng(),
+      if (userLocation != null) userLocation!.toLatLng(),
     ];
     final center = _center(allPoints);
     final tileUrl = AppConfig.effectiveTileUrl;
@@ -48,11 +69,16 @@ class KosMap extends StatelessWidget {
       children: [
         const CustomPaint(painter: DarkMapBackdropPainter()),
         FlutterMap(
+          mapController: mapController,
           options: MapOptions(
             initialCenter: center,
-            initialZoom: allPoints.length > 1 ? 15 : 13,
+            initialZoom: initialZoom ?? (allPoints.length > 1 ? 15 : 13),
+            minZoom: minZoom,
+            maxZoom: maxZoom,
             interactionOptions: InteractionOptions(
               flags: interactive ? InteractiveFlag.all : InteractiveFlag.none,
+              enableMultiFingerGestureRace: interactive && enableRotation,
+              rotationThreshold: 8,
             ),
             onTap: onTap == null
                 ? null
@@ -62,6 +88,9 @@ class KosMap extends StatelessWidget {
                       longitude: point.longitude,
                     ),
                   ),
+            onPositionChanged: onPositionChanged,
+            onMapEvent: onMapEvent,
+            onMapReady: onMapReady,
           ),
           children: [
             if (tileUrl.isNotEmpty)
@@ -79,7 +108,12 @@ class KosMap extends StatelessWidget {
                   ),
                 ],
               ),
-            MarkerLayer(markers: _markers(context)),
+            MarkerLayer(
+              markers: _destinationAndSelectionMarkers(context),
+              rotate: true,
+            ),
+            if (userLocation != null)
+              AnimatedUserLocationMarkerLayer(location: userLocation!),
           ],
         ),
         if (onRecenter != null)
@@ -96,19 +130,22 @@ class KosMap extends StatelessWidget {
     );
   }
 
-  List<Marker> _markers(BuildContext context) {
+  List<Marker> _destinationAndSelectionMarkers(BuildContext context) {
     final markers = <Marker>[];
     for (var i = 0; i < destinations.length; i++) {
       final coordinate = destinations[i].coordinates;
       if (coordinate == null) {
         continue;
       }
+      final isActive =
+          activeDestinationIndex != null && i >= activeDestinationIndex!;
+      final size = KosMapMarker.sizeFor(isActive: isActive, enable: true);
       markers.add(
         Marker(
           point: coordinate.toLatLng(),
-          width: 34,
-          height: 34,
-          child: NumberMarker(number: i + 1),
+          width: size,
+          height: size,
+          child: NumberMarker(number: i + 1, isActive: isActive),
         ),
       );
     }
@@ -122,7 +159,7 @@ class KosMap extends StatelessWidget {
         ),
       );
     }
-    if (showUserMarker) {
+    if (showUserMarker && userLocation == null) {
       final userPoint = _userPoint(points, selectedLocation);
       markers.add(
         Marker(
@@ -137,28 +174,80 @@ class KosMap extends StatelessWidget {
   }
 }
 
-class NumberMarker extends StatelessWidget {
-  const NumberMarker({super.key, required this.number});
+class KosMapMarker extends StatelessWidget {
+  const KosMapMarker({
+    super.key,
+    required this.isActive,
+    required this.enable,
+    this.icon,
+    this.iconAsset,
+    this.text,
+  }) : assert(
+         (text == null ? 0 : 1) +
+                 (icon == null ? 0 : 1) +
+                 (iconAsset == null ? 0 : 1) ==
+             1,
+         'Exactly one of text, icon, or iconAsset must be provided.',
+       );
 
-  final int number;
+  final bool isActive;
+  final bool enable;
+  final IconData? icon;
+  final Widget? iconAsset;
+  final String? text;
+
+  static double sizeFor({required bool isActive, required bool enable}) {
+    return enable && isActive ? 32 : 24;
+  }
 
   @override
   Widget build(BuildContext context) {
+    final effectiveActive = enable && isActive;
+    final size = sizeFor(isActive: isActive, enable: enable);
+    final textSize = effectiveActive ? 18.0 : 14.0;
+    final background = enable
+        ? context.colors.green900
+        : context.colors.primary;
     return Container(
+      width: size,
+      height: size,
       decoration: BoxDecoration(
-        color: context.colors.primary,
+        color: background,
         shape: BoxShape.circle,
         border: Border.all(color: context.colors.onSurface, width: 2),
       ),
       alignment: Alignment.center,
-      child: Text(
-        '$number',
-        style: Theme.of(context).textTheme.labelLarge?.copyWith(
-          color: context.colors.onSurface,
-          fontSize: 15,
-        ),
-      ),
+      child: text != null
+          ? Text(
+              text!,
+              style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                color: context.colors.onSurface,
+                fontSize: textSize,
+                height: 1,
+              ),
+            )
+          : iconAsset != null
+          ? SizedBox(width: 18, height: 18, child: FittedBox(child: iconAsset))
+          : Icon(icon, color: context.colors.onSurface, size: 18),
     );
+  }
+}
+
+class NumberMarker extends StatelessWidget {
+  const NumberMarker({
+    super.key,
+    required this.number,
+    this.isActive = false,
+    this.enable = true,
+  });
+
+  final int number;
+  final bool isActive;
+  final bool enable;
+
+  @override
+  Widget build(BuildContext context) {
+    return KosMapMarker(isActive: isActive, enable: enable, text: '$number');
   }
 }
 
@@ -167,14 +256,74 @@ class UserMarker extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: context.colors.primary,
-        shape: BoxShape.circle,
-        border: Border.all(color: context.colors.onSurface, width: 2),
+    return KosMapMarker(
+      isActive: true,
+      enable: true,
+      iconAsset: KosSvgIcon(
+        KosAssets.emojiPeople,
+        size: 18,
+        color: context.colors.onSurface,
       ),
-      alignment: Alignment.center,
-      child: KosSvgIcon(KosAssets.emojiPeople, color: context.colors.onSurface),
+    );
+  }
+}
+
+class AnimatedUserLocationMarkerLayer extends StatefulWidget {
+  const AnimatedUserLocationMarkerLayer({super.key, required this.location});
+
+  final Coordinates location;
+
+  @override
+  State<AnimatedUserLocationMarkerLayer> createState() =>
+      _AnimatedUserLocationMarkerLayerState();
+}
+
+class _AnimatedUserLocationMarkerLayerState
+    extends State<AnimatedUserLocationMarkerLayer> {
+  late LatLng _begin;
+
+  @override
+  void initState() {
+    super.initState();
+    _begin = widget.location.toLatLng();
+  }
+
+  @override
+  void didUpdateWidget(covariant AnimatedUserLocationMarkerLayer oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.location != widget.location) {
+      _begin = oldWidget.location.toLatLng();
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final end = widget.location.toLatLng();
+    return TweenAnimationBuilder<LatLng>(
+      tween: _LatLngTween(begin: _begin, end: end),
+      duration: const Duration(milliseconds: 650),
+      curve: Curves.easeOutCubic,
+      builder: (context, point, child) {
+        return MarkerLayer(
+          rotate: true,
+          markers: [Marker(point: point, width: 32, height: 32, child: child!)],
+        );
+      },
+      child: const UserMarker(),
+    );
+  }
+}
+
+class _LatLngTween extends Tween<LatLng> {
+  _LatLngTween({required super.begin, required super.end});
+
+  @override
+  LatLng lerp(double t) {
+    final start = begin!;
+    final finish = end!;
+    return LatLng(
+      start.latitude + (finish.latitude - start.latitude) * t,
+      start.longitude + (finish.longitude - start.longitude) * t,
     );
   }
 }
