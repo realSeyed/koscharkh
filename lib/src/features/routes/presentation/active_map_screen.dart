@@ -82,6 +82,7 @@ class _ActiveMapViewState extends State<_ActiveMapView>
   DateTime? _lastCameraFollowAt;
   ActiveMapState? _previousListenedState;
   VoidCallback? _cameraAnimationListener;
+  bool _forceNextRelockLocationAnimation = false;
 
   @override
   void initState() {
@@ -142,17 +143,25 @@ class _ActiveMapViewState extends State<_ActiveMapView>
         previous.smoothedCameraHeadingDegrees !=
         current.smoothedCameraHeadingDegrees;
     if (relocked || locationChanged || headingChanged) {
+      final forceRelockLocation =
+          _forceNextRelockLocationAnimation && locationChanged;
+      if (forceRelockLocation) {
+        _forceNextRelockLocationAnimation = false;
+      }
       _animateCameraTo(
         target,
-        force: relocked,
-        targetZoom: relocked ? current.preferredFollowZoom : null,
+        force: relocked || forceRelockLocation,
+        targetZoom: relocked || forceRelockLocation
+            ? current.preferredFollowZoom
+            : null,
         targetRotation: current.smoothedCameraHeadingDegrees,
       );
     }
   }
 
   void _relockCamera(ActiveMapState state) {
-    context.read<ActiveMapBloc>().add(const ActiveMapCameraLocked());
+    _forceNextRelockLocationAnimation = true;
+    context.read<ActiveMapBloc>().add(const ActiveMapCameraRelockRequested());
     final target = state.userLocation;
     if (target != null) {
       _animateCameraTo(
@@ -198,8 +207,8 @@ class _ActiveMapViewState extends State<_ActiveMapView>
     }
 
     _lastCameraFollowAt = now;
-    _removeCameraAnimationListener();
     _cameraAnimationController.stop();
+    _removeCameraAnimationListener();
     _cameraAnimationController.duration = const Duration(milliseconds: 620);
 
     final centerTween = _LatLngTween(
@@ -214,7 +223,8 @@ class _ActiveMapViewState extends State<_ActiveMapView>
       begin: currentCamera.rotation,
       end: rotationTarget,
     );
-    _cameraAnimationListener = () {
+    late final VoidCallback listener;
+    listener = () {
       final eased = Curves.easeOutCubic.transform(
         _cameraAnimationController.value,
       );
@@ -224,17 +234,21 @@ class _ActiveMapViewState extends State<_ActiveMapView>
         rotationTween.transform(eased),
       );
     };
+    _cameraAnimationListener = listener;
 
     _cameraAnimationController
-      ..addListener(_cameraAnimationListener!)
+      ..addListener(listener)
       ..forward(from: 0).whenCompleteOrCancel(() {
-        _removeCameraAnimationListener();
+        _removeCameraAnimationListener(listener);
       });
   }
 
-  void _removeCameraAnimationListener() {
+  void _removeCameraAnimationListener([VoidCallback? expectedListener]) {
     final listener = _cameraAnimationListener;
     if (listener == null) {
+      return;
+    }
+    if (expectedListener != null && listener != expectedListener) {
       return;
     }
     _cameraAnimationController.removeListener(listener);

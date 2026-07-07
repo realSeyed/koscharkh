@@ -14,6 +14,11 @@ class CurrentLocationException implements Exception {
 
 class CurrentLocationService {
   Future<Coordinates> getCurrentCoordinates() async {
+    final location = await getCurrentLiveLocation();
+    return location.coordinates;
+  }
+
+  Future<LiveUserLocation> getCurrentLiveLocation() async {
     await _ensureLocationAccess();
 
     final position = await Geolocator.getCurrentPosition(
@@ -23,10 +28,14 @@ class CurrentLocationService {
       ),
     );
 
-    return Coordinates(
-      latitude: position.latitude,
-      longitude: position.longitude,
-    );
+    return _toLiveUserLocation(position);
+  }
+
+  Future<LiveUserLocation?> getLastKnownLiveLocation() async {
+    await _ensureLocationAccess();
+
+    final position = await Geolocator.getLastKnownPosition();
+    return position == null ? null : _toLiveUserLocation(position);
   }
 
   Future<Stream<Coordinates>> watchCoordinates() async {
@@ -37,12 +46,7 @@ class CurrentLocationService {
   Future<Stream<LiveUserLocation>> watchLiveLocation() async {
     await _ensureLocationAccess();
 
-    return Geolocator.getPositionStream(
-      locationSettings: const LocationSettings(
-        accuracy: LocationAccuracy.high,
-        distanceFilter: 2,
-      ),
-    ).map(_toLiveUserLocation);
+    return _watchLiveLocation();
   }
 
   Future<void> _ensureLocationAccess() async {
@@ -65,6 +69,20 @@ class CurrentLocationService {
       );
     }
   }
+}
+
+Stream<LiveUserLocation> _watchLiveLocation() async* {
+  final lastKnown = await Geolocator.getLastKnownPosition();
+  if (lastKnown != null) {
+    yield _toLiveUserLocation(lastKnown);
+  }
+
+  yield* Geolocator.getPositionStream(
+    locationSettings: const LocationSettings(
+      accuracy: LocationAccuracy.high,
+      distanceFilter: 2,
+    ),
+  ).map(_toLiveUserLocation);
 }
 
 LiveUserLocation _toLiveUserLocation(Position position) {
