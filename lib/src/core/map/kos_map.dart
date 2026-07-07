@@ -1,4 +1,5 @@
 import 'dart:math';
+import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
@@ -188,6 +189,99 @@ class SelectedLocationMarker extends StatelessWidget {
       size: 42,
       color: context.colors.primary,
     );
+  }
+}
+
+class CenterLocationMarker extends StatelessWidget {
+  const CenterLocationMarker({super.key});
+
+  static const double width = 48;
+  static const double height = 58;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: width,
+      height: height,
+      child: CustomPaint(
+        painter: _CenterLocationMarkerPainter(
+          fill: context.colors.primary,
+          stroke: context.colors.onSurface,
+          shadow: context.colors.scrim,
+        ),
+      ),
+    );
+  }
+}
+
+class _CenterLocationMarkerPainter extends CustomPainter {
+  const _CenterLocationMarkerPainter({
+    required this.fill,
+    required this.stroke,
+    required this.shadow,
+  });
+
+  final Color fill;
+  final Color stroke;
+  final Color shadow;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final shadowPaint = Paint()
+      ..color = shadow.withValues(alpha: 0.35)
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 8);
+    canvas.drawCircle(Offset(size.width / 2, size.height - 4), 8, shadowPaint);
+
+    final path = ui.Path()
+      ..moveTo(size.width / 2, size.height)
+      ..cubicTo(
+        size.width * 0.2,
+        size.height * 0.62,
+        4,
+        size.height * 0.5,
+        4,
+        24,
+      )
+      ..cubicTo(4, 10, 14, 2, size.width / 2, 2)
+      ..cubicTo(size.width - 14, 2, size.width - 4, 10, size.width - 4, 24)
+      ..cubicTo(
+        size.width - 4,
+        size.height * 0.5,
+        size.width * 0.8,
+        size.height * 0.62,
+        size.width / 2,
+        size.height,
+      )
+      ..close();
+
+    canvas
+      ..drawPath(
+        path,
+        Paint()
+          ..color = fill
+          ..style = PaintingStyle.fill,
+      )
+      ..drawPath(
+        path,
+        Paint()
+          ..color = stroke
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 2,
+      )
+      ..drawCircle(
+        Offset(size.width / 2, 24),
+        8,
+        Paint()
+          ..color = stroke
+          ..style = PaintingStyle.fill,
+      );
+  }
+
+  @override
+  bool shouldRepaint(covariant _CenterLocationMarkerPainter oldDelegate) {
+    return fill != oldDelegate.fill ||
+        stroke != oldDelegate.stroke ||
+        shadow != oldDelegate.shadow;
   }
 }
 

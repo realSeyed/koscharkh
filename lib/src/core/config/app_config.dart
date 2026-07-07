@@ -15,6 +15,10 @@ class AppConfig {
     'MAPBOX_DIRECTIONS_PROFILE',
     defaultValue: 'walking',
   );
+  static const mapboxGeocodingBaseUrl = String.fromEnvironment(
+    'MAPBOX_GEOCODING_BASE_URL',
+    defaultValue: 'https://api.mapbox.com/geocoding/v5/mapbox.places',
+  );
 
   static String get effectiveTileUrl {
     if (mapboxTileUrlTemplate.isEmpty) {
@@ -26,4 +30,5 @@ class AppConfig {
   }
 
   static bool get hasDirectionsToken => mapboxAccessToken.isNotEmpty;
+  static bool get hasMapboxToken => mapboxAccessToken.isNotEmpty;
 }

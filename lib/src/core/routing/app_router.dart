@@ -124,7 +124,11 @@ GoRouter createRouter(AppDependencies dependencies) {
               ? state.extra! as LocationSelection
               : null;
           return BlocProvider(
-            create: (_) => LocationPickerCubit(initial),
+            create: (_) => LocationPickerCubit(
+              initial: initial,
+              reverseGeocodingService: dependencies.reverseGeocodingService,
+              currentLocationService: dependencies.currentLocationService,
+            ),
             child: const SelectLocationScreen(),
           );
         },
