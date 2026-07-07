@@ -16,8 +16,13 @@ class RoutePreviewThumbnail extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (!_hasRoute(args)) {
+      return const _MatteRoutePreview();
+    }
+
     final dependencies = context.read<AppDependencies>();
     return BlocProvider(
+      key: ValueKey(_routeSignature(args)),
       create: (context) =>
           RouteCalculationBloc(
             routeCacheRepository: dependencies.routeCacheRepository,
@@ -59,6 +64,39 @@ class RoutePreviewThumbnail extends StatelessWidget {
               ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+}
+
+bool _hasRoute(RoutePreviewArgs args) {
+  return args.destinations.where((item) => item.coordinates != null).length >=
+      2;
+}
+
+String _routeSignature(RoutePreviewArgs args) {
+  final coordinates = args.destinations
+      .map((item) => item.coordinates)
+      .where((item) => item != null)
+      .map((item) => '${item!.latitude},${item.longitude}')
+      .join('|');
+  return '${args.charkhStableId ?? 'draft'}:${args.timeMinutes}:$coordinates';
+}
+
+class _MatteRoutePreview extends StatelessWidget {
+  const _MatteRoutePreview();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 190,
+      color: context.colors.surfaceMuted,
+      child: Center(
+        child: KosSvgIcon(
+          KosAssets.map,
+          size: 32,
+          color: context.colors.onSurfaceMuted,
         ),
       ),
     );

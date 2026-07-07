@@ -7,7 +7,7 @@ import '../data/directions_service.dart';
 import '../data/route_cache_repository.dart';
 import '../domain/route_data.dart';
 
-enum RouteStatus { initial, loading, loaded, fallback, failure }
+enum RouteStatus { initial, loading, loaded, fallback, empty, failure }
 
 class RouteCalculationState extends Equatable {
   const RouteCalculationState({
@@ -79,6 +79,11 @@ class RouteCalculationBloc
         .map((item) => item.coordinates)
         .whereType<Coordinates>()
         .toList(growable: false);
+
+    if (coordinates.length < 2) {
+      emit(const RouteCalculationState(status: RouteStatus.empty));
+      return;
+    }
 
     if (event.charkhStableId != null) {
       final cached = await routeCacheRepository.getRouteCache(
