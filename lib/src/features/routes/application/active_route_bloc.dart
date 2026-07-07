@@ -182,6 +182,10 @@ class ActiveMapCameraLocked extends ActiveMapEvent {
   const ActiveMapCameraLocked();
 }
 
+class ActiveMapCameraRelockRequested extends ActiveMapEvent {
+  const ActiveMapCameraRelockRequested();
+}
+
 class ActiveMapCameraUnlocked extends ActiveMapEvent {
   const ActiveMapCameraUnlocked();
 }
@@ -226,6 +230,7 @@ class ActiveMapBloc extends Bloc<ActiveMapEvent, ActiveMapState> {
     on<ActiveMapPanelExpanded>(_onPanelExpanded);
     on<ActiveMapPanelCollapsed>(_onPanelCollapsed);
     on<ActiveMapCameraLocked>(_onCameraLocked);
+    on<ActiveMapCameraRelockRequested>(_onCameraRelockRequested);
     on<ActiveMapCameraUnlocked>(_onCameraUnlocked);
     on<ActiveMapCameraChanged>(_onCameraChanged);
     on<_ActiveMapUserLocationChanged>(_onUserLocationChanged);
@@ -395,6 +400,29 @@ class ActiveMapBloc extends Bloc<ActiveMapEvent, ActiveMapState> {
     emit(state.copyWith(isCameraLockedToUser: true));
   }
 
+  void _onCameraRelockRequested(
+    ActiveMapCameraRelockRequested event,
+    Emitter<ActiveMapState> emit,
+  ) {
+    emit(state.copyWith(isCameraLockedToUser: true, locationMessage: null));
+
+    if (state.userLocation == null) {
+      unawaited(_loadLastKnownLocation());
+    }
+  }
+
+  Future<void> _loadLastKnownLocation() async {
+    try {
+      final cachedLocation = await currentLocationService
+          .getLastKnownLiveLocation();
+      if (cachedLocation != null) {
+        add(_ActiveMapUserLocationChanged(cachedLocation));
+      }
+    } catch (error) {
+      add(_ActiveMapLocationFailed(error.toString()));
+    }
+  }
+
   void _onCameraUnlocked(
     ActiveMapCameraUnlocked event,
     Emitter<ActiveMapState> emit,
@@ -424,7 +452,13 @@ class ActiveMapBloc extends Bloc<ActiveMapEvent, ActiveMapState> {
     _ActiveMapUserLocationChanged event,
     Emitter<ActiveMapState> emit,
   ) {
-    final location = event.location;
+    _emitUserLocation(event.location, emit);
+  }
+
+  void _emitUserLocation(
+    LiveUserLocation location,
+    Emitter<ActiveMapState> emit,
+  ) {
     final rawHeading = _headingForLocation(location, state.userLocation);
     final smoothedHeading = rawHeading == null
         ? state.smoothedCameraHeadingDegrees
