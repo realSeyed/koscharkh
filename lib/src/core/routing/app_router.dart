@@ -158,9 +158,9 @@ GoRouter createRouter(AppDependencies dependencies) {
         builder: (context, state) => ActiveMapScreen(
           charkhStableId: state.pathParameters['charkhStableId']!,
           charkhRepository: dependencies.charkhRepository,
-          routeCacheRepository: dependencies.routeCacheRepository,
           activeRouteRepository: dependencies.activeRouteRepository,
           directionsService: dependencies.directionsService,
+          currentLocationService: dependencies.currentLocationService,
         ),
       ),
       GoRoute(
