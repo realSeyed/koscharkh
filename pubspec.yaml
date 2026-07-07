@@ -38,6 +38,7 @@ dependencies:
   flutter_bloc: any
   flutter_map: any
   flutter_svg: any
+  geolocator: any
   go_router: any
   http: any
   isar: any

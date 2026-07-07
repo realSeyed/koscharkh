@@ -1,4 +1,6 @@
 import '../../features/charkhs/data/charkh_repository.dart';
+import '../../features/locations/data/current_location_service.dart';
+import '../../features/locations/data/reverse_geocoding_service.dart';
 import '../../features/profile/data/profile_repository.dart';
 import '../../features/routes/data/active_route_repository.dart';
 import '../../features/routes/data/directions_service.dart';
@@ -11,6 +13,8 @@ class AppDependencies {
     required this.routeCacheRepository,
     required this.activeRouteRepository,
     required this.directionsService,
+    required this.reverseGeocodingService,
+    required this.currentLocationService,
   });
 
   final ProfileRepository profileRepository;
@@ -18,4 +22,6 @@ class AppDependencies {
   final RouteCacheRepository routeCacheRepository;
   final ActiveRouteRepository activeRouteRepository;
   final DirectionsService directionsService;
+  final ReverseGeocodingService reverseGeocodingService;
+  final CurrentLocationService currentLocationService;
 }
