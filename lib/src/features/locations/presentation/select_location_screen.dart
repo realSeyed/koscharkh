@@ -136,19 +136,16 @@ class _BottomLocationOverlay extends StatelessWidget {
       left: 0,
       right: 0,
       bottom: 0,
-      child: SafeArea(
-        top: false,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.end,
-          children: [
-            Padding(
-              padding: const EdgeInsets.only(right: 24, bottom: 24),
-              child: _CurrentLocationButton(state: state),
-            ),
-            _LocationDetailsBox(state: state),
-          ],
-        ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(right: 24, bottom: 24),
+            child: _CurrentLocationButton(state: state),
+          ),
+          _LocationDetailsBox(state: state),
+        ],
       ),
     );
   }
@@ -201,10 +198,11 @@ class _LocationDetailsBox extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final statusMessage = state.currentLocationMessage ?? state.addressMessage;
+    final bottomInset = MediaQuery.paddingOf(context).bottom;
     return Container(
       width: double.infinity,
       color: context.colors.surface,
-      padding: const EdgeInsets.fromLTRB(24, 16, 24, 18),
+      padding: EdgeInsets.fromLTRB(24, 16, 24, 18 + bottomInset),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
