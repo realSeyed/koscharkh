@@ -15,19 +15,24 @@ class RoutePreviewScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final hasRoute =
+        args.destinations.where((item) => item.coordinates != null).length >= 2;
     return Scaffold(
       backgroundColor: context.colors.surface,
       body: Stack(
         children: [
-          BlocBuilder<RouteCalculationBloc, RouteCalculationState>(
-            builder: (context, state) {
-              return KosMap(
-                points: state.route?.points ?? const [],
-                destinations: args.destinations,
-                interactive: true,
-              );
-            },
-          ),
+          if (hasRoute)
+            BlocBuilder<RouteCalculationBloc, RouteCalculationState>(
+              builder: (context, state) {
+                return KosMap(
+                  points: state.route?.points ?? const [],
+                  destinations: args.destinations,
+                  interactive: true,
+                );
+              },
+            )
+          else
+            ColoredBox(color: context.colors.surfaceMuted),
           Positioned(
             right: 20,
             top: MediaQuery.paddingOf(context).top + 12,

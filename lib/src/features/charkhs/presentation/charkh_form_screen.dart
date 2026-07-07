@@ -34,7 +34,6 @@ class CharkhFormScreen extends StatelessWidget {
                   : state.name.trim(),
               destinations: state.destinations,
               timeMinutes: state.parsedMinutes == 0 ? 30 : state.parsedMinutes,
-              charkhStableId: state.stableId,
             );
             return ListView(
               padding: EdgeInsets.zero,

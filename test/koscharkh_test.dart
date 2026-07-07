@@ -27,6 +27,22 @@ void main() {
     expect(route.source, 'fallback');
   });
 
+  test('fallback route stays empty without enough coordinates', () {
+    final emptyRoute = buildFallbackRoute(
+      coordinates: const [],
+      timeMinutes: 20,
+    );
+    final singleStopRoute = buildFallbackRoute(
+      coordinates: const [Coordinates(latitude: 40.0, longitude: -73.0)],
+      timeMinutes: 20,
+    );
+
+    expect(emptyRoute.points, isEmpty);
+    expect(emptyRoute.durationSeconds, 0);
+    expect(singleStopRoute.points, isEmpty);
+    expect(singleStopRoute.durationSeconds, 0);
+  });
+
   test('dark theme exposes KosCharkh extension tokens', () {
     final theme = buildKoscharkhDarkTheme();
 

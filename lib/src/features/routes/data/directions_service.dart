@@ -83,16 +83,13 @@ RouteData buildFallbackRoute({
   required int timeMinutes,
 }) {
   final points = coordinates.map((item) => item.toLatLng()).toList();
-  if (points.isEmpty) {
-    points.addAll(const [
-      LatLng(40.7247, -73.9970),
-      LatLng(40.7270, -73.9995),
-      LatLng(40.7304, -74.0022),
-      LatLng(40.7315, -73.9942),
-    ]);
-  } else if (points.length == 1) {
-    final only = points.single;
-    points.add(LatLng(only.latitude + 0.004, only.longitude + 0.003));
+  if (points.length < 2) {
+    return const RouteData(
+      points: [],
+      distanceMeters: 0,
+      durationSeconds: 0,
+      source: 'fallback',
+    );
   }
 
   const distance = Distance();
