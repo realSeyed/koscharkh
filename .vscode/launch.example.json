@@ -1,0 +1,17 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "KosCharkh",
+      "request": "launch",
+      "type": "dart",
+      "program": "lib/main.dart",
+      "toolArgs": [
+        "--dart-define=MAPBOX_ACCESS_TOKEN=your_token_here",
+        "--dart-define=MAPBOX_TILE_URL_TEMPLATE=https://api.mapbox.com/styles/v1/mapbox/dark-v11/tiles/{z}/{x}/{y}?access_token={accessToken}",
+        "--dart-define=MAPBOX_DIRECTIONS_BASE_URL=https://api.mapbox.com/directions/v5/mapbox",
+        "--dart-define=MAPBOX_DIRECTIONS_PROFILE=walking"
+      ]
+    }
+  ]
+}
