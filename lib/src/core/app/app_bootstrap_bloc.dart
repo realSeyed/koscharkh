@@ -4,6 +4,7 @@ import 'package:isar/isar.dart';
 import 'package:path_provider/path_provider.dart';
 
 import '../../features/charkhs/data/charkh_repository.dart';
+import '../../features/locations/data/compass_heading_service.dart';
 import '../../features/locations/data/current_location_service.dart';
 import '../../features/locations/data/reverse_geocoding_service.dart';
 import '../../features/profile/data/profile_repository.dart';
@@ -79,6 +80,7 @@ class AppBootstrapBloc extends Bloc<AppBootstrapEvent, AppBootstrapState> {
         directionsService: DirectionsService(),
         reverseGeocodingService: ReverseGeocodingService(),
         currentLocationService: CurrentLocationService(),
+        compassHeadingService: CompassHeadingService(),
       );
       emit(
         AppBootstrapState(

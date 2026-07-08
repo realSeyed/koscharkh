@@ -36,6 +36,7 @@ dependencies:
   cupertino_icons: ^1.0.8
   equatable: any
   flutter_bloc: any
+  flutter_compass: any
   flutter_map: any
   flutter_svg: any
   geolocator: any

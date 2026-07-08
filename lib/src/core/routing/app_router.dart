@@ -161,6 +161,7 @@ GoRouter createRouter(AppDependencies dependencies) {
           activeRouteRepository: dependencies.activeRouteRepository,
           directionsService: dependencies.directionsService,
           currentLocationService: dependencies.currentLocationService,
+          compassHeadingService: dependencies.compassHeadingService,
         ),
       ),
       GoRoute(
