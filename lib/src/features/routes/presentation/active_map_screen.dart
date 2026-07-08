@@ -9,6 +9,7 @@ import '../../../core/utils/time_format.dart';
 import '../../../core/widgets/components.dart';
 import '../../charkhs/data/charkh_repository.dart';
 import '../../charkhs/domain/charkh.dart';
+import '../../locations/data/compass_heading_service.dart';
 import '../../locations/data/current_location_service.dart';
 import '../../locations/domain/coordinates.dart';
 import '../application/active_route_bloc.dart';
@@ -23,6 +24,7 @@ class ActiveMapScreen extends StatelessWidget {
     required this.activeRouteRepository,
     required this.directionsService,
     required this.currentLocationService,
+    required this.compassHeadingService,
   });
 
   final String charkhStableId;
@@ -30,6 +32,7 @@ class ActiveMapScreen extends StatelessWidget {
   final ActiveRouteRepository activeRouteRepository;
   final DirectionsService directionsService;
   final CurrentLocationService currentLocationService;
+  final CompassHeadingService compassHeadingService;
 
   @override
   Widget build(BuildContext context) {
@@ -55,6 +58,7 @@ class ActiveMapScreen extends StatelessWidget {
             activeRouteRepository: activeRouteRepository,
             directionsService: directionsService,
             currentLocationService: currentLocationService,
+            compassHeadingService: compassHeadingService,
           )..add(ActiveMapStarted(charkh)),
           child: const _ActiveMapView(),
         );
@@ -143,6 +147,7 @@ class _ActiveMapViewState extends State<_ActiveMapView>
         previous.smoothedCameraHeadingDegrees !=
         current.smoothedCameraHeadingDegrees;
     if (relocked || locationChanged || headingChanged) {
+      final headingOnly = headingChanged && !locationChanged && !relocked;
       final forceRelockLocation =
           _forceNextRelockLocationAnimation && locationChanged;
       if (forceRelockLocation) {
@@ -155,6 +160,13 @@ class _ActiveMapViewState extends State<_ActiveMapView>
             ? current.preferredFollowZoom
             : null,
         targetRotation: current.smoothedCameraHeadingDegrees,
+        duration: headingOnly
+            ? const Duration(milliseconds: 160)
+            : const Duration(milliseconds: 620),
+        throttleDuration: headingOnly
+            ? const Duration(milliseconds: 48)
+            : const Duration(milliseconds: 320),
+        minimumRotationDelta: headingOnly ? 0.35 : 1,
       );
     }
   }
@@ -178,6 +190,9 @@ class _ActiveMapViewState extends State<_ActiveMapView>
     required bool force,
     double? targetZoom,
     double? targetRotation,
+    Duration duration = const Duration(milliseconds: 620),
+    Duration throttleDuration = const Duration(milliseconds: 320),
+    double minimumRotationDelta = 1,
   }) {
     if (!_mapReady) {
       _pendingCameraTarget = target;
@@ -187,8 +202,7 @@ class _ActiveMapViewState extends State<_ActiveMapView>
     final now = DateTime.now();
     if (!force &&
         _lastCameraFollowAt != null &&
-        now.difference(_lastCameraFollowAt!) <
-            const Duration(milliseconds: 320)) {
+        now.difference(_lastCameraFollowAt!) < throttleDuration) {
       return;
     }
 
@@ -202,14 +216,14 @@ class _ActiveMapViewState extends State<_ActiveMapView>
     );
     if (!force &&
         distance(currentCamera.center, targetPoint) < 4 &&
-        rotationDistance < 1) {
+        rotationDistance < minimumRotationDelta) {
       return;
     }
 
     _lastCameraFollowAt = now;
     _cameraAnimationController.stop();
     _removeCameraAnimationListener();
-    _cameraAnimationController.duration = const Duration(milliseconds: 620);
+    _cameraAnimationController.duration = duration;
 
     final centerTween = _LatLngTween(
       begin: currentCamera.center,

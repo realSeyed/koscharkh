@@ -6,6 +6,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../charkhs/domain/charkh.dart';
 import '../../destinations/domain/destination.dart';
+import '../../locations/data/compass_heading_service.dart';
 import '../../locations/data/current_location_service.dart';
 import '../../locations/domain/coordinates.dart';
 import '../../locations/domain/live_user_location.dart';
@@ -27,6 +28,7 @@ class ActiveMapState extends Equatable {
     this.elapsedSeconds = 0,
     this.currentDestinationIndex = 0,
     this.userLocation,
+    this.deviceHeadingDegrees,
     this.userHeadingDegrees,
     this.smoothedCameraHeadingDegrees,
     this.userSpeedMetersPerSecond = 0,
@@ -47,6 +49,7 @@ class ActiveMapState extends Equatable {
   final int elapsedSeconds;
   final int currentDestinationIndex;
   final Coordinates? userLocation;
+  final double? deviceHeadingDegrees;
   final double? userHeadingDegrees;
   final double? smoothedCameraHeadingDegrees;
   final double userSpeedMetersPerSecond;
@@ -77,6 +80,7 @@ class ActiveMapState extends Equatable {
     int? elapsedSeconds,
     int? currentDestinationIndex,
     Object? userLocation = _unchanged,
+    Object? deviceHeadingDegrees = _unchanged,
     Object? userHeadingDegrees = _unchanged,
     Object? smoothedCameraHeadingDegrees = _unchanged,
     double? userSpeedMetersPerSecond,
@@ -101,6 +105,9 @@ class ActiveMapState extends Equatable {
       userLocation: userLocation == _unchanged
           ? this.userLocation
           : userLocation as Coordinates?,
+      deviceHeadingDegrees: deviceHeadingDegrees == _unchanged
+          ? this.deviceHeadingDegrees
+          : deviceHeadingDegrees as double?,
       userHeadingDegrees: userHeadingDegrees == _unchanged
           ? this.userHeadingDegrees
           : userHeadingDegrees as double?,
@@ -133,6 +140,7 @@ class ActiveMapState extends Equatable {
     elapsedSeconds,
     currentDestinationIndex,
     userLocation,
+    deviceHeadingDegrees,
     userHeadingDegrees,
     smoothedCameraHeadingDegrees,
     userSpeedMetersPerSecond,
@@ -209,6 +217,15 @@ class _ActiveMapUserLocationChanged extends ActiveMapEvent {
   List<Object?> get props => [location];
 }
 
+class _ActiveMapCompassHeadingChanged extends ActiveMapEvent {
+  const _ActiveMapCompassHeadingChanged(this.headingDegrees);
+
+  final double headingDegrees;
+
+  @override
+  List<Object?> get props => [headingDegrees];
+}
+
 class _ActiveMapLocationFailed extends ActiveMapEvent {
   const _ActiveMapLocationFailed(this.message);
 
@@ -223,6 +240,7 @@ class ActiveMapBloc extends Bloc<ActiveMapEvent, ActiveMapState> {
     required this.activeRouteRepository,
     required this.directionsService,
     required this.currentLocationService,
+    required this.compassHeadingService,
   }) : super(const ActiveMapState()) {
     on<ActiveMapStarted>(_onStarted);
     on<ActiveMapTicked>(_onTicked);
@@ -234,15 +252,18 @@ class ActiveMapBloc extends Bloc<ActiveMapEvent, ActiveMapState> {
     on<ActiveMapCameraUnlocked>(_onCameraUnlocked);
     on<ActiveMapCameraChanged>(_onCameraChanged);
     on<_ActiveMapUserLocationChanged>(_onUserLocationChanged);
+    on<_ActiveMapCompassHeadingChanged>(_onCompassHeadingChanged);
     on<_ActiveMapLocationFailed>(_onLocationFailed);
   }
 
   final ActiveRouteRepository activeRouteRepository;
   final DirectionsService directionsService;
   final CurrentLocationService currentLocationService;
+  final CompassHeadingService compassHeadingService;
 
   Timer? _timer;
   StreamSubscription<LiveUserLocation>? _locationSubscription;
+  StreamSubscription<double>? _headingSubscription;
   DateTime? _startedAt;
 
   Future<void> _onStarted(
@@ -251,6 +272,7 @@ class ActiveMapBloc extends Bloc<ActiveMapEvent, ActiveMapState> {
   ) async {
     _timer?.cancel();
     await _locationSubscription?.cancel();
+    await _headingSubscription?.cancel();
     _startedAt = DateTime.now();
 
     final destinations = event.charkh.destinations
@@ -292,6 +314,7 @@ class ActiveMapBloc extends Bloc<ActiveMapEvent, ActiveMapState> {
         ),
       );
       await _startLocationStream(emit);
+      _startHeadingStream();
       return;
     }
 
@@ -326,6 +349,7 @@ class ActiveMapBloc extends Bloc<ActiveMapEvent, ActiveMapState> {
       (_) => add(const ActiveMapTicked()),
     );
     await _startLocationStream(emit);
+    _startHeadingStream();
   }
 
   Future<void> _startLocationStream(Emitter<ActiveMapState> emit) async {
@@ -342,6 +366,17 @@ class ActiveMapBloc extends Bloc<ActiveMapEvent, ActiveMapState> {
     } catch (error) {
       emit(state.copyWith(locationMessage: error.toString()));
     }
+  }
+
+  void _startHeadingStream() {
+    final previousSubscription = _headingSubscription;
+    if (previousSubscription != null) {
+      unawaited(previousSubscription.cancel());
+    }
+    _headingSubscription = compassHeadingService.watchHeadingDegrees().listen(
+      (heading) => add(_ActiveMapCompassHeadingChanged(heading)),
+      onError: (_) {},
+    );
   }
 
   Future<void> _onTicked(
@@ -455,6 +490,31 @@ class ActiveMapBloc extends Bloc<ActiveMapEvent, ActiveMapState> {
     _emitUserLocation(event.location, emit);
   }
 
+  void _onCompassHeadingChanged(
+    _ActiveMapCompassHeadingChanged event,
+    Emitter<ActiveMapState> emit,
+  ) {
+    final previousHeading = state.deviceHeadingDegrees;
+    if (previousHeading != null &&
+        _angleDistance(previousHeading, event.headingDegrees) <
+            _minimumCompassHeadingDeltaDegrees) {
+      return;
+    }
+
+    final smoothedHeading = _smoothHeading(
+      state.smoothedCameraHeadingDegrees ?? event.headingDegrees,
+      event.headingDegrees,
+      _compassHeadingSmoothingFactor,
+    );
+
+    emit(
+      state.copyWith(
+        deviceHeadingDegrees: event.headingDegrees,
+        smoothedCameraHeadingDegrees: smoothedHeading,
+      ),
+    );
+  }
+
   void _emitUserLocation(
     LiveUserLocation location,
     Emitter<ActiveMapState> emit,
@@ -505,6 +565,7 @@ class ActiveMapBloc extends Bloc<ActiveMapEvent, ActiveMapState> {
   Future<void> close() async {
     _timer?.cancel();
     await _locationSubscription?.cancel();
+    await _headingSubscription?.cancel();
     return super.close();
   }
 }
@@ -526,6 +587,8 @@ const Object _unchanged = Object();
 const _minimumHeadingSpeedMetersPerSecond = 0.7;
 const _minimumBearingDistanceMeters = 3.0;
 const _headingSmoothingFactor = 0.22;
+const _compassHeadingSmoothingFactor = 0.42;
+const _minimumCompassHeadingDeltaDegrees = 0.6;
 
 double? _headingForLocation(
   LiveUserLocation location,
@@ -562,6 +625,10 @@ double _smoothHeading(double from, double to, double factor) {
 
 double _shortestAngleDelta(double from, double to) {
   return ((to - from + 540) % 360) - 180;
+}
+
+double _angleDistance(double from, double to) {
+  return _shortestAngleDelta(from, to).abs();
 }
 
 double _bearingBetween(Coordinates from, Coordinates to) {

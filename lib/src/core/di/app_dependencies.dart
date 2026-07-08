@@ -1,4 +1,5 @@
 import '../../features/charkhs/data/charkh_repository.dart';
+import '../../features/locations/data/compass_heading_service.dart';
 import '../../features/locations/data/current_location_service.dart';
 import '../../features/locations/data/reverse_geocoding_service.dart';
 import '../../features/profile/data/profile_repository.dart';
@@ -15,6 +16,7 @@ class AppDependencies {
     required this.directionsService,
     required this.reverseGeocodingService,
     required this.currentLocationService,
+    required this.compassHeadingService,
   });
 
   final ProfileRepository profileRepository;
@@ -24,4 +26,5 @@ class AppDependencies {
   final DirectionsService directionsService;
   final ReverseGeocodingService reverseGeocodingService;
   final CurrentLocationService currentLocationService;
+  final CompassHeadingService compassHeadingService;
 }
