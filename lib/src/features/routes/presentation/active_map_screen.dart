@@ -112,7 +112,9 @@ class _ActiveMapViewState extends State<_ActiveMapView>
         target,
         force: true,
         targetZoom: state.preferredFollowZoom,
-        targetRotation: state.smoothedCameraHeadingDegrees,
+        targetRotation: _mapRotationForHeading(
+          state.smoothedCameraHeadingDegrees,
+        ),
       );
     }
   }
@@ -159,7 +161,9 @@ class _ActiveMapViewState extends State<_ActiveMapView>
         targetZoom: relocked || forceRelockLocation
             ? current.preferredFollowZoom
             : null,
-        targetRotation: current.smoothedCameraHeadingDegrees,
+        targetRotation: _mapRotationForHeading(
+          current.smoothedCameraHeadingDegrees,
+        ),
         duration: headingOnly
             ? const Duration(milliseconds: 160)
             : const Duration(milliseconds: 620),
@@ -180,7 +184,9 @@ class _ActiveMapViewState extends State<_ActiveMapView>
         target,
         force: true,
         targetZoom: state.preferredFollowZoom,
-        targetRotation: state.smoothedCameraHeadingDegrees,
+        targetRotation: _mapRotationForHeading(
+          state.smoothedCameraHeadingDegrees,
+        ),
       );
     }
   }
@@ -358,6 +364,13 @@ class _AngleTween extends Tween<double> {
 
 double _angleDistance(double from, double to) {
   return _shortestAngleDelta(from, to).abs();
+}
+
+double? _mapRotationForHeading(double? headingDegrees) {
+  if (headingDegrees == null) {
+    return null;
+  }
+  return _normalizeDegrees(-headingDegrees);
 }
 
 double _shortestAngleDelta(double from, double to) {
