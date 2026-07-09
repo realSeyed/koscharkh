@@ -83,7 +83,7 @@ class _ActiveMapView extends StatefulWidget {
 }
 
 class _ActiveMapViewState extends State<_ActiveMapView>
-    with SingleTickerProviderStateMixin {
+    with SingleTickerProviderStateMixin, WidgetsBindingObserver {
   static const _maxActiveMapZoom = 20.5;
 
   late final MapController _mapController;
@@ -99,16 +99,27 @@ class _ActiveMapViewState extends State<_ActiveMapView>
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _mapController = MapController();
     _cameraAnimationController = AnimationController(vsync: this);
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _removeCameraAnimationListener();
     _cameraAnimationController.dispose();
     _mapController.dispose();
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed && mounted) {
+      context.read<ActiveMapBloc>().add(
+        const ActiveMapLocationRetryRequested(),
+      );
+    }
   }
 
   void _handleMapReady(ActiveMapState state) {
@@ -306,9 +317,6 @@ class _ActiveMapViewState extends State<_ActiveMapView>
         builder: (context, state) {
           return LayoutBuilder(
             builder: (context, constraints) {
-              final sheetSize = state.isPanelExpanded
-                  ? _expandedSheetSize
-                  : _collapsedSheetSize;
               return Stack(
                 children: [
                   KosMap(
@@ -329,12 +337,17 @@ class _ActiveMapViewState extends State<_ActiveMapView>
                         color: context.colors.primary,
                       ),
                     ),
-                  _CameraFollowButton(
-                    isLocked: state.isCameraLockedToUser,
-                    bottom: constraints.maxHeight * sheetSize + 24,
-                    onPressed: () => _relockCamera(state),
+                  if (state.isLocationRecoveryPromptVisible)
+                    _LocationServicesPrompt(
+                      isOpeningSettings: state.isOpeningLocationSettings,
+                    ),
+                  _RoutePanel(
+                    state: state,
+                    cameraButton: _CameraFollowButton(
+                      isLocked: state.isCameraLockedToUser,
+                      onPressed: () => _relockCamera(state),
+                    ),
                   ),
-                  _RoutePanel(state: state),
                 ],
               );
             },
@@ -390,142 +403,164 @@ double _normalizeDegrees(double degrees) {
   return normalized < 0 ? normalized + 360 : normalized;
 }
 
-class _CameraFollowButton extends StatelessWidget {
-  const _CameraFollowButton({
-    required this.isLocked,
-    required this.bottom,
-    required this.onPressed,
-  });
+class _LocationServicesPrompt extends StatelessWidget {
+  const _LocationServicesPrompt({required this.isOpeningSettings});
 
-  final bool isLocked;
-  final double bottom;
-  final VoidCallback onPressed;
+  final bool isOpeningSettings;
 
   @override
   Widget build(BuildContext context) {
     return Positioned(
+      left: 24,
       right: 24,
-      bottom: bottom,
-      child: IconSquareButton(
-        asset: KosAssets.myLocation,
-        onPressed: onPressed,
-        backgroundColor: isLocked
-            ? context.colors.green900
-            : context.colors.primary,
-        iconColor: context.colors.onSurface,
+      top: MediaQuery.paddingOf(context).top + 24,
+      child: Material(
+        color: context.colors.surface,
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Turn on GPS to start this charkh.',
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'KosCharkh needs your current location to calculate and show the active route.',
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: context.colors.onSurfaceMuted,
+                ),
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: KosButton(
+                      text: isOpeningSettings ? 'Opening...' : 'Turn On GPS',
+                      height: 38,
+                      onPressed: isOpeningSettings
+                          ? null
+                          : () => context.read<ActiveMapBloc>().add(
+                              const ActiveMapLocationSettingsRequested(),
+                            ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: KosButton(
+                      text: 'Retry',
+                      height: 38,
+                      variant: KosButtonVariant.secondary,
+                      onPressed: () => context.read<ActiveMapBloc>().add(
+                        const ActiveMapLocationRetryRequested(),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
 }
 
-const _collapsedSheetSize = 0.12;
-const _expandedSheetSize = 0.31;
-const _sheetSnapTolerance = 0.04;
+class _CameraFollowButton extends StatelessWidget {
+  const _CameraFollowButton({required this.isLocked, required this.onPressed});
 
-class _RoutePanel extends StatefulWidget {
-  const _RoutePanel({required this.state});
-
-  final ActiveMapState state;
+  final bool isLocked;
+  final VoidCallback onPressed;
 
   @override
-  State<_RoutePanel> createState() => _RoutePanelState();
+  Widget build(BuildContext context) {
+    return IconSquareButton(
+      asset: KosAssets.myLocation,
+      onPressed: onPressed,
+      backgroundColor: isLocked
+          ? context.colors.green900
+          : context.colors.primary,
+      iconColor: context.colors.onSurface,
+    );
+  }
 }
 
-class _RoutePanelState extends State<_RoutePanel> {
-  late final DraggableScrollableController _controller;
+class _RoutePanel extends StatelessWidget {
+  const _RoutePanel({required this.state, required this.cameraButton});
 
-  @override
-  void initState() {
-    super.initState();
-    _controller = DraggableScrollableController();
-  }
+  final ActiveMapState state;
+  final Widget cameraButton;
 
-  @override
-  void didUpdateWidget(covariant _RoutePanel oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.state.panelState != widget.state.panelState) {
-      _animateToPanelState(widget.state.panelState);
-    }
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  void _toggleSheet() {
+  void _toggleSheet(BuildContext context) {
     context.read<ActiveMapBloc>().add(const ActiveMapPanelToggled());
   }
 
-  void _animateToPanelState(ActiveMapPanelState panelState) {
-    if (!_controller.isAttached) {
-      return;
-    }
-    final target = panelState == ActiveMapPanelState.expanded
-        ? _expandedSheetSize
-        : _collapsedSheetSize;
-    _controller.animateTo(
-      target,
-      duration: const Duration(milliseconds: 220),
-      curve: Curves.easeOutCubic,
-    );
-  }
-
-  bool _handleSheetNotification(DraggableScrollableNotification notification) {
-    if (notification.extent >= _expandedSheetSize - _sheetSnapTolerance &&
-        !widget.state.isPanelExpanded) {
+  void _handleDragEnd(BuildContext context, DragEndDetails details) {
+    final velocity = details.primaryVelocity ?? 0;
+    if (velocity < -120) {
       context.read<ActiveMapBloc>().add(const ActiveMapPanelExpanded());
-    } else if (notification.extent <=
-            _collapsedSheetSize + _sheetSnapTolerance &&
-        widget.state.isPanelExpanded) {
+    } else if (velocity > 120) {
       context.read<ActiveMapBloc>().add(const ActiveMapPanelCollapsed());
     }
-    return false;
   }
 
   @override
   Widget build(BuildContext context) {
     final bottomInset = MediaQuery.paddingOf(context).bottom;
-    return NotificationListener<DraggableScrollableNotification>(
-      onNotification: _handleSheetNotification,
-      child: DraggableScrollableSheet(
-        controller: _controller,
-        initialChildSize: _collapsedSheetSize,
-        minChildSize: _collapsedSheetSize,
-        maxChildSize: _expandedSheetSize,
-        snap: true,
-        snapSizes: const [_collapsedSheetSize, _expandedSheetSize],
-        builder: (context, scrollController) {
-          return Material(
-            color: context.colors.surface,
-            child: SingleChildScrollView(
-              controller: scrollController,
-              physics: const ClampingScrollPhysics(),
-              child: Padding(
-                padding: EdgeInsets.fromLTRB(24, 8, 24, 18 + bottomInset),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _PanelHandle(onTap: _toggleSheet),
-                    const SizedBox(height: 18),
-                    _PanelHeader(state: widget.state),
-                    AnimatedCrossFade(
-                      firstChild: const SizedBox(width: double.infinity),
-                      secondChild: _ExpandedPanelDetails(state: widget.state),
-                      crossFadeState: widget.state.isPanelExpanded
-                          ? CrossFadeState.showSecond
-                          : CrossFadeState.showFirst,
-                      duration: const Duration(milliseconds: 180),
-                      sizeCurve: Curves.easeOutCubic,
+    final maxHeight = MediaQuery.sizeOf(context).height * 0.82;
+    return Positioned(
+      left: 0,
+      right: 0,
+      bottom: 0,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(right: 24, bottom: 24),
+            child: Align(alignment: Alignment.centerRight, child: cameraButton),
+          ),
+          AnimatedSize(
+            duration: const Duration(milliseconds: 220),
+            curve: Curves.easeOutCubic,
+            alignment: Alignment.bottomCenter,
+            child: GestureDetector(
+              onVerticalDragEnd: (details) => _handleDragEnd(context, details),
+              child: ConstrainedBox(
+                constraints: BoxConstraints(maxHeight: maxHeight),
+                child: Material(
+                  color: context.colors.surface,
+                  child: SingleChildScrollView(
+                    physics: const ClampingScrollPhysics(),
+                    child: Padding(
+                      padding: EdgeInsets.fromLTRB(24, 8, 24, 18 + bottomInset),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _PanelHandle(onTap: () => _toggleSheet(context)),
+                          const SizedBox(height: 18),
+                          _PanelHeader(state: state),
+                          AnimatedCrossFade(
+                            firstChild: const SizedBox(width: double.infinity),
+                            secondChild: _ExpandedPanelDetails(state: state),
+                            crossFadeState: state.isPanelExpanded
+                                ? CrossFadeState.showSecond
+                                : CrossFadeState.showFirst,
+                            duration: const Duration(milliseconds: 180),
+                            sizeCurve: Curves.easeOutCubic,
+                          ),
+                        ],
+                      ),
                     ),
-                  ],
+                  ),
                 ),
               ),
             ),
-          );
-        },
+          ),
+        ],
       ),
     );
   }
