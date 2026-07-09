@@ -135,6 +135,17 @@ class CharkhFormCubit extends Cubit<CharkhFormState> {
   }
 
   void addSavedDestination(DestinationDraft draft) {
+    final alreadyAdded = state.destinations.any(
+      (item) => _sameSavedDestination(item, draft),
+    );
+    if (alreadyAdded) {
+      emit(
+        state.copyWith(
+          validationMessage: '${draft.name} is already in this charkh.',
+        ),
+      );
+      return;
+    }
     addDestination(draft.copyWith(stableId: 'dest-${_uuid.v4()}'));
   }
 
@@ -199,3 +210,18 @@ class CharkhFormCubit extends Cubit<CharkhFormState> {
 }
 
 const Object _unchanged = Object();
+
+bool _sameSavedDestination(DestinationDraft current, DestinationDraft saved) {
+  return _sameText(current.name, saved.name) &&
+      _sameText(current.description, saved.description) &&
+      current.coordinates == saved.coordinates &&
+      _sameNullableText(current.address, saved.address);
+}
+
+bool _sameText(String a, String b) {
+  return a.trim().toLowerCase() == b.trim().toLowerCase();
+}
+
+bool _sameNullableText(String? a, String? b) {
+  return (a ?? '').trim().toLowerCase() == (b ?? '').trim().toLowerCase();
+}
