@@ -40,10 +40,11 @@ class ActiveMapState extends Equatable {
     this.currentZoom = 18,
     this.preferredFollowZoom = 18,
     this.currentRotation = 0,
-    this.panelState = ActiveMapPanelState.collapsed,
+    this.panelState = ActiveMapPanelState.expanded,
     this.finishStatus = ActiveMapFinishStatus.running,
     this.finishCountdownSeconds = 0,
     this.finishPromptDismissed = false,
+    this.isOpeningLocationSettings = false,
     this.routeMessage,
     this.locationMessage,
     this.finishMessage,
@@ -69,6 +70,7 @@ class ActiveMapState extends Equatable {
   final ActiveMapFinishStatus finishStatus;
   final int finishCountdownSeconds;
   final bool finishPromptDismissed;
+  final bool isOpeningLocationSettings;
   final String? routeMessage;
   final String? locationMessage;
   final String? finishMessage;
@@ -77,6 +79,13 @@ class ActiveMapState extends Equatable {
   bool get isFinishPromptVisible =>
       finishStatus == ActiveMapFinishStatus.prompting;
   bool get isFinished => finishStatus == ActiveMapFinishStatus.recorded;
+  bool get isLocationServiceDisabled =>
+      locationMessage == _locationServicesDisabledMessage;
+  bool get isLocationRecoveryPromptVisible =>
+      status == ActiveMapStatus.failure &&
+      (isLocationServiceDisabled ||
+          isOpeningLocationSettings ||
+          locationMessage == _locationSettingsPromptMessage);
 
   String get nextDestination {
     if (destinations.isEmpty) {
@@ -107,6 +116,7 @@ class ActiveMapState extends Equatable {
     ActiveMapFinishStatus? finishStatus,
     int? finishCountdownSeconds,
     bool? finishPromptDismissed,
+    bool? isOpeningLocationSettings,
     Object? routeMessage = _unchanged,
     Object? locationMessage = _unchanged,
     Object? finishMessage = _unchanged,
@@ -145,6 +155,8 @@ class ActiveMapState extends Equatable {
           finishCountdownSeconds ?? this.finishCountdownSeconds,
       finishPromptDismissed:
           finishPromptDismissed ?? this.finishPromptDismissed,
+      isOpeningLocationSettings:
+          isOpeningLocationSettings ?? this.isOpeningLocationSettings,
       routeMessage: routeMessage == _unchanged
           ? this.routeMessage
           : routeMessage as String?,
@@ -179,6 +191,7 @@ class ActiveMapState extends Equatable {
     finishStatus,
     finishCountdownSeconds,
     finishPromptDismissed,
+    isOpeningLocationSettings,
     routeMessage,
     locationMessage,
     finishMessage,
@@ -247,6 +260,14 @@ class ActiveMapCameraChanged extends ActiveMapEvent {
   List<Object?> get props => [zoom, rotation];
 }
 
+class ActiveMapLocationSettingsRequested extends ActiveMapEvent {
+  const ActiveMapLocationSettingsRequested();
+}
+
+class ActiveMapLocationRetryRequested extends ActiveMapEvent {
+  const ActiveMapLocationRetryRequested();
+}
+
 class _ActiveMapUserLocationChanged extends ActiveMapEvent {
   const _ActiveMapUserLocationChanged(this.location);
 
@@ -294,6 +315,8 @@ class ActiveMapBloc extends Bloc<ActiveMapEvent, ActiveMapState> {
     on<ActiveMapCameraRelockRequested>(_onCameraRelockRequested);
     on<ActiveMapCameraUnlocked>(_onCameraUnlocked);
     on<ActiveMapCameraChanged>(_onCameraChanged);
+    on<ActiveMapLocationSettingsRequested>(_onLocationSettingsRequested);
+    on<ActiveMapLocationRetryRequested>(_onLocationRetryRequested);
     on<_ActiveMapUserLocationChanged>(_onUserLocationChanged);
     on<_ActiveMapCompassHeadingChanged>(_onCompassHeadingChanged);
     on<_ActiveMapLocationFailed>(_onLocationFailed);
@@ -330,15 +353,23 @@ class ActiveMapBloc extends Bloc<ActiveMapEvent, ActiveMapState> {
         destinations: destinations,
       ),
     );
+    await _startRouteFromCurrentLocation(event.charkh, emit);
+  }
 
+  Future<void> _startRouteFromCurrentLocation(
+    Charkh charkh,
+    Emitter<ActiveMapState> emit,
+  ) async {
     final Coordinates origin;
     try {
       origin = await currentLocationService.getCurrentCoordinates();
     } catch (error) {
+      final message = _normalizeLocationErrorMessage(error);
       emit(
         state.copyWith(
           status: ActiveMapStatus.failure,
-          locationMessage: error.toString(),
+          locationMessage: message,
+          isOpeningLocationSettings: false,
         ),
       );
       return;
@@ -346,7 +377,7 @@ class ActiveMapBloc extends Bloc<ActiveMapEvent, ActiveMapState> {
 
     final routeCoordinates = [
       origin,
-      for (final destination in destinations)
+      for (final destination in state.destinations)
         if (destination.coordinates != null) destination.coordinates!,
     ];
 
@@ -370,14 +401,14 @@ class ActiveMapBloc extends Bloc<ActiveMapEvent, ActiveMapState> {
     } catch (error) {
       route = buildFallbackRoute(
         coordinates: routeCoordinates,
-        timeMinutes: event.charkh.timeMinutes,
+        timeMinutes: charkh.timeMinutes,
       );
       routeMessage = error.toString();
     }
 
     final fixedDuration = route.durationSeconds > 0
         ? route.durationSeconds
-        : event.charkh.timeMinutes * 60;
+        : charkh.timeMinutes * 60;
 
     emit(
       state.copyWith(
@@ -386,6 +417,8 @@ class ActiveMapBloc extends Bloc<ActiveMapEvent, ActiveMapState> {
         fixedRouteDurationSeconds: fixedDuration,
         userLocation: origin,
         routeMessage: routeMessage,
+        locationMessage: null,
+        isOpeningLocationSettings: false,
       ),
     );
     await _persist(state);
@@ -409,7 +442,9 @@ class ActiveMapBloc extends Bloc<ActiveMapEvent, ActiveMapState> {
             add(_ActiveMapLocationFailed(error.toString())),
       );
     } catch (error) {
-      emit(state.copyWith(locationMessage: error.toString()));
+      emit(
+        state.copyWith(locationMessage: _normalizeLocationErrorMessage(error)),
+      );
     }
   }
 
@@ -576,6 +611,65 @@ class ActiveMapBloc extends Bloc<ActiveMapEvent, ActiveMapState> {
     );
   }
 
+  Future<void> _onLocationSettingsRequested(
+    ActiveMapLocationSettingsRequested event,
+    Emitter<ActiveMapState> emit,
+  ) async {
+    emit(
+      state.copyWith(
+        isOpeningLocationSettings: true,
+        locationMessage: _locationSettingsPromptMessage,
+      ),
+    );
+    try {
+      await currentLocationService.openLocationSettings();
+    } catch (error) {
+      emit(
+        state.copyWith(
+          isOpeningLocationSettings: false,
+          locationMessage: error.toString(),
+        ),
+      );
+      return;
+    }
+    emit(
+      state.copyWith(
+        isOpeningLocationSettings: false,
+        locationMessage: _locationSettingsPromptMessage,
+      ),
+    );
+  }
+
+  Future<void> _onLocationRetryRequested(
+    ActiveMapLocationRetryRequested event,
+    Emitter<ActiveMapState> emit,
+  ) async {
+    final charkh = state.charkh;
+    if (charkh == null ||
+        state.status == ActiveMapStatus.loading ||
+        state.status == ActiveMapStatus.ready) {
+      return;
+    }
+    final isEnabled = await currentLocationService.isLocationServiceEnabled();
+    if (!isEnabled) {
+      emit(
+        state.copyWith(
+          status: ActiveMapStatus.failure,
+          locationMessage: _locationServicesDisabledMessage,
+        ),
+      );
+      return;
+    }
+    emit(
+      state.copyWith(
+        status: ActiveMapStatus.loading,
+        locationMessage: null,
+        routeMessage: null,
+      ),
+    );
+    await _startRouteFromCurrentLocation(charkh, emit);
+  }
+
   void _onUserLocationChanged(
     _ActiveMapUserLocationChanged event,
     Emitter<ActiveMapState> emit,
@@ -638,7 +732,11 @@ class ActiveMapBloc extends Bloc<ActiveMapEvent, ActiveMapState> {
     _ActiveMapLocationFailed event,
     Emitter<ActiveMapState> emit,
   ) {
-    emit(state.copyWith(locationMessage: event.message));
+    emit(
+      state.copyWith(
+        locationMessage: _normalizeLocationErrorMessage(event.message),
+      ),
+    );
   }
 
   Future<void> _persist(ActiveMapState value) async {
@@ -729,6 +827,17 @@ const _headingSmoothingFactor = 0.22;
 const _compassHeadingSmoothingFactor = 0.42;
 const _minimumCompassHeadingDeltaDegrees = 0.6;
 const _finishCountdownSeconds = 10;
+const _locationServicesDisabledMessage = 'Location services are disabled.';
+const _locationSettingsPromptMessage =
+    'Turn on location services, then return to KosCharkh.';
+
+String _normalizeLocationErrorMessage(Object error) {
+  final message = error.toString();
+  if (message.toLowerCase().contains('location services are disabled')) {
+    return _locationServicesDisabledMessage;
+  }
+  return message;
+}
 
 String _profileDisplayName(String firstName, String lastName) {
   final joined = [

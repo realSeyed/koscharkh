@@ -13,6 +13,14 @@ class CurrentLocationException implements Exception {
 }
 
 class CurrentLocationService {
+  Future<bool> isLocationServiceEnabled() {
+    return Geolocator.isLocationServiceEnabled();
+  }
+
+  Future<bool> openLocationSettings() {
+    return Geolocator.openLocationSettings();
+  }
+
   Future<Coordinates> getCurrentCoordinates() async {
     final location = await getCurrentLiveLocation();
     return location.coordinates;
