@@ -36,33 +36,36 @@ class RoutePreviewThumbnail extends StatelessWidget {
           ),
       child: GestureDetector(
         onTap: () => context.push('/route-preview', extra: args),
-        child: SizedBox(
-          height: 190,
-          child: Stack(
-            fit: StackFit.expand,
-            children: [
-              BlocBuilder<RouteCalculationBloc, RouteCalculationState>(
-                builder: (context, state) {
-                  return KosMap(
-                    points: state.route?.points ?? const [],
-                    destinations: args.destinations,
-                    interactive: false,
-                  );
-                },
-              ),
-              Positioned(
-                right: 8,
-                top: 8,
-                child: IconButton(
-                  tooltip: 'Open preview',
-                  onPressed: () => context.push('/route-preview', extra: args),
-                  icon: KosSvgIcon(
-                    KosAssets.cropFree,
-                    color: context.colors.onSurface,
+        child: ClipRect(
+          child: SizedBox(
+            height: 190,
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                BlocBuilder<RouteCalculationBloc, RouteCalculationState>(
+                  builder: (context, state) {
+                    return KosMap(
+                      points: state.route?.points ?? const [],
+                      destinations: args.destinations,
+                      interactive: false,
+                    );
+                  },
+                ),
+                Positioned(
+                  right: 8,
+                  top: 8,
+                  child: IconButton(
+                    tooltip: 'Open preview',
+                    onPressed: () =>
+                        context.push('/route-preview', extra: args),
+                    icon: KosSvgIcon(
+                      KosAssets.cropFree,
+                      color: context.colors.onSurface,
+                    ),
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
@@ -89,14 +92,16 @@ class _MatteRoutePreview extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      height: 190,
-      color: context.colors.surfaceMuted,
-      child: Center(
-        child: KosSvgIcon(
-          KosAssets.map,
-          size: 32,
-          color: context.colors.onSurfaceMuted,
+    return ClipRect(
+      child: Container(
+        height: 190,
+        color: context.colors.surfaceMuted,
+        child: Center(
+          child: KosSvgIcon(
+            KosAssets.map,
+            size: 32,
+            color: context.colors.onSurfaceMuted,
+          ),
         ),
       ),
     );
