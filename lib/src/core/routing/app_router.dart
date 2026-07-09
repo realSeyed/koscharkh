@@ -6,8 +6,11 @@ import '../../features/charkhs/application/charkh_form_cubit.dart';
 import '../../features/charkhs/application/charkh_list_cubit.dart';
 import '../../features/charkhs/presentation/charkh_form_screen.dart';
 import '../../features/charkhs/presentation/charkhs_screen.dart';
+import '../../features/destinations/application/destination_library_cubit.dart';
 import '../../features/destinations/application/destination_form_cubit.dart';
 import '../../features/destinations/presentation/destination_form_screen.dart';
+import '../../features/destinations/presentation/saved_destination_picker_screen.dart';
+import '../../features/destinations/presentation/saved_destinations_screen.dart';
 import '../../features/home/presentation/home_screen.dart';
 import '../../features/locations/application/location_picker_cubit.dart';
 import '../../features/locations/domain/location_selection.dart';
@@ -66,8 +69,11 @@ GoRouter createRouter(AppDependencies dependencies) {
               GoRoute(
                 path: '/account',
                 builder: (context, state) => BlocProvider(
-                  create: (_) =>
-                      ProfileCubit(dependencies.profileRepository)..load(),
+                  create: (_) => ProfileCubit(
+                    profileRepository: dependencies.profileRepository,
+                    charkhHistoryRepository:
+                        dependencies.charkhHistoryRepository,
+                  )..load(),
                   child: const AccountScreen(),
                 ),
               ),
@@ -100,7 +106,12 @@ GoRouter createRouter(AppDependencies dependencies) {
               ? state.extra! as DestinationFormArgs
               : const DestinationFormArgs();
           return BlocProvider(
-            create: (_) => DestinationFormCubit(args.draft),
+            create: (_) => DestinationFormCubit(
+              args.draft,
+              destinationLibraryRepository:
+                  dependencies.destinationLibraryRepository,
+              canSaveToLibrary: args.canSaveToLibrary,
+            ),
             child: const DestinationFormScreen(title: 'Create Destination'),
           );
         },
@@ -112,10 +123,33 @@ GoRouter createRouter(AppDependencies dependencies) {
               ? state.extra! as DestinationFormArgs
               : const DestinationFormArgs();
           return BlocProvider(
-            create: (_) => DestinationFormCubit(args.draft),
+            create: (_) => DestinationFormCubit(
+              args.draft,
+              destinationLibraryRepository:
+                  dependencies.destinationLibraryRepository,
+              canSaveToLibrary: args.canSaveToLibrary,
+            ),
             child: const DestinationFormScreen(title: 'Edit Destination'),
           );
         },
+      ),
+      GoRoute(
+        path: '/account/destinations',
+        builder: (context, state) => BlocProvider(
+          create: (_) =>
+              DestinationLibraryCubit(dependencies.destinationLibraryRepository)
+                ..load(),
+          child: const SavedDestinationsScreen(),
+        ),
+      ),
+      GoRoute(
+        path: '/destinations/select',
+        builder: (context, state) => BlocProvider(
+          create: (_) =>
+              DestinationLibraryCubit(dependencies.destinationLibraryRepository)
+                ..load(),
+          child: const SavedDestinationPickerScreen(),
+        ),
       ),
       GoRoute(
         path: '/location/select',
@@ -159,6 +193,8 @@ GoRouter createRouter(AppDependencies dependencies) {
           charkhStableId: state.pathParameters['charkhStableId']!,
           charkhRepository: dependencies.charkhRepository,
           activeRouteRepository: dependencies.activeRouteRepository,
+          charkhHistoryRepository: dependencies.charkhHistoryRepository,
+          profileRepository: dependencies.profileRepository,
           directionsService: dependencies.directionsService,
           currentLocationService: dependencies.currentLocationService,
           compassHeadingService: dependencies.compassHeadingService,

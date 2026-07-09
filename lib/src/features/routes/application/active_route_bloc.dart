@@ -10,13 +10,17 @@ import '../../locations/data/compass_heading_service.dart';
 import '../../locations/data/current_location_service.dart';
 import '../../locations/domain/coordinates.dart';
 import '../../locations/domain/live_user_location.dart';
+import '../../profile/data/profile_repository.dart';
 import '../data/active_route_repository.dart';
+import '../data/charkh_history_repository.dart';
 import '../data/directions_service.dart';
 import '../domain/route_data.dart';
 
 enum ActiveMapStatus { initial, loading, ready, failure }
 
 enum ActiveMapPanelState { expanded, collapsed }
+
+enum ActiveMapFinishStatus { running, prompting, recorded }
 
 class ActiveMapState extends Equatable {
   const ActiveMapState({
@@ -37,8 +41,12 @@ class ActiveMapState extends Equatable {
     this.preferredFollowZoom = 18,
     this.currentRotation = 0,
     this.panelState = ActiveMapPanelState.collapsed,
+    this.finishStatus = ActiveMapFinishStatus.running,
+    this.finishCountdownSeconds = 0,
+    this.finishPromptDismissed = false,
     this.routeMessage,
     this.locationMessage,
+    this.finishMessage,
   });
 
   final ActiveMapStatus status;
@@ -58,10 +66,17 @@ class ActiveMapState extends Equatable {
   final double preferredFollowZoom;
   final double currentRotation;
   final ActiveMapPanelState panelState;
+  final ActiveMapFinishStatus finishStatus;
+  final int finishCountdownSeconds;
+  final bool finishPromptDismissed;
   final String? routeMessage;
   final String? locationMessage;
+  final String? finishMessage;
 
   bool get isPanelExpanded => panelState == ActiveMapPanelState.expanded;
+  bool get isFinishPromptVisible =>
+      finishStatus == ActiveMapFinishStatus.prompting;
+  bool get isFinished => finishStatus == ActiveMapFinishStatus.recorded;
 
   String get nextDestination {
     if (destinations.isEmpty) {
@@ -89,8 +104,12 @@ class ActiveMapState extends Equatable {
     double? preferredFollowZoom,
     double? currentRotation,
     ActiveMapPanelState? panelState,
+    ActiveMapFinishStatus? finishStatus,
+    int? finishCountdownSeconds,
+    bool? finishPromptDismissed,
     Object? routeMessage = _unchanged,
     Object? locationMessage = _unchanged,
+    Object? finishMessage = _unchanged,
   }) {
     return ActiveMapState(
       status: status ?? this.status,
@@ -121,12 +140,20 @@ class ActiveMapState extends Equatable {
       preferredFollowZoom: preferredFollowZoom ?? this.preferredFollowZoom,
       currentRotation: currentRotation ?? this.currentRotation,
       panelState: panelState ?? this.panelState,
+      finishStatus: finishStatus ?? this.finishStatus,
+      finishCountdownSeconds:
+          finishCountdownSeconds ?? this.finishCountdownSeconds,
+      finishPromptDismissed:
+          finishPromptDismissed ?? this.finishPromptDismissed,
       routeMessage: routeMessage == _unchanged
           ? this.routeMessage
           : routeMessage as String?,
       locationMessage: locationMessage == _unchanged
           ? this.locationMessage
           : locationMessage as String?,
+      finishMessage: finishMessage == _unchanged
+          ? this.finishMessage
+          : finishMessage as String?,
     );
   }
 
@@ -149,8 +176,12 @@ class ActiveMapState extends Equatable {
     preferredFollowZoom,
     currentRotation,
     panelState,
+    finishStatus,
+    finishCountdownSeconds,
+    finishPromptDismissed,
     routeMessage,
     locationMessage,
+    finishMessage,
   ];
 }
 
@@ -184,6 +215,14 @@ class ActiveMapPanelExpanded extends ActiveMapEvent {
 
 class ActiveMapPanelCollapsed extends ActiveMapEvent {
   const ActiveMapPanelCollapsed();
+}
+
+class ActiveMapFinishConfirmed extends ActiveMapEvent {
+  const ActiveMapFinishConfirmed();
+}
+
+class ActiveMapFinishDismissed extends ActiveMapEvent {
+  const ActiveMapFinishDismissed();
 }
 
 class ActiveMapCameraLocked extends ActiveMapEvent {
@@ -238,6 +277,8 @@ class _ActiveMapLocationFailed extends ActiveMapEvent {
 class ActiveMapBloc extends Bloc<ActiveMapEvent, ActiveMapState> {
   ActiveMapBloc({
     required this.activeRouteRepository,
+    required this.charkhHistoryRepository,
+    required this.profileRepository,
     required this.directionsService,
     required this.currentLocationService,
     required this.compassHeadingService,
@@ -247,6 +288,8 @@ class ActiveMapBloc extends Bloc<ActiveMapEvent, ActiveMapState> {
     on<ActiveMapPanelToggled>(_onPanelToggled);
     on<ActiveMapPanelExpanded>(_onPanelExpanded);
     on<ActiveMapPanelCollapsed>(_onPanelCollapsed);
+    on<ActiveMapFinishConfirmed>(_onFinishConfirmed);
+    on<ActiveMapFinishDismissed>(_onFinishDismissed);
     on<ActiveMapCameraLocked>(_onCameraLocked);
     on<ActiveMapCameraRelockRequested>(_onCameraRelockRequested);
     on<ActiveMapCameraUnlocked>(_onCameraUnlocked);
@@ -257,6 +300,8 @@ class ActiveMapBloc extends Bloc<ActiveMapEvent, ActiveMapState> {
   }
 
   final ActiveRouteRepository activeRouteRepository;
+  final CharkhHistoryRepository charkhHistoryRepository;
+  final ProfileRepository profileRepository;
   final DirectionsService directionsService;
   final CurrentLocationService currentLocationService;
   final CompassHeadingService compassHeadingService;
@@ -384,21 +429,48 @@ class ActiveMapBloc extends Bloc<ActiveMapEvent, ActiveMapState> {
     Emitter<ActiveMapState> emit,
   ) async {
     final charkh = state.charkh;
-    if (charkh == null || state.fixedRouteDurationSeconds <= 0) {
+    if (charkh == null ||
+        state.fixedRouteDurationSeconds <= 0 ||
+        state.isFinished) {
       return;
     }
     final elapsed = state.elapsedSeconds + 1;
-    emit(
-      state.copyWith(
+    var nextState = state.copyWith(
+      elapsedSeconds: elapsed,
+      currentDestinationIndex: _currentDestinationIndex(
         elapsedSeconds: elapsed,
-        currentDestinationIndex: _currentDestinationIndex(
-          elapsedSeconds: elapsed,
-          fixedRouteDurationSeconds: state.fixedRouteDurationSeconds,
-          destinationCount: state.destinations.length,
-        ),
+        fixedRouteDurationSeconds: state.fixedRouteDurationSeconds,
+        destinationCount: state.destinations.length,
       ),
     );
-    await _persist(state);
+
+    if (state.finishStatus == ActiveMapFinishStatus.prompting) {
+      final countdown = max(0, state.finishCountdownSeconds - 1);
+      nextState = nextState.copyWith(
+        finishCountdownSeconds: countdown,
+        panelState: ActiveMapPanelState.expanded,
+      );
+      emit(nextState);
+      await _persist(nextState);
+      if (countdown == 0) {
+        await _recordCompletion(emit);
+      }
+      return;
+    }
+
+    if (state.finishStatus == ActiveMapFinishStatus.running &&
+        !state.finishPromptDismissed &&
+        elapsed >= state.fixedRouteDurationSeconds) {
+      nextState = nextState.copyWith(
+        finishStatus: ActiveMapFinishStatus.prompting,
+        finishCountdownSeconds: _finishCountdownSeconds,
+        panelState: ActiveMapPanelState.expanded,
+        finishMessage: null,
+      );
+    }
+
+    emit(nextState);
+    await _persist(nextState);
   }
 
   void _onPanelToggled(
@@ -426,6 +498,27 @@ class ActiveMapBloc extends Bloc<ActiveMapEvent, ActiveMapState> {
     Emitter<ActiveMapState> emit,
   ) {
     emit(state.copyWith(panelState: ActiveMapPanelState.collapsed));
+  }
+
+  Future<void> _onFinishConfirmed(
+    ActiveMapFinishConfirmed event,
+    Emitter<ActiveMapState> emit,
+  ) async {
+    await _recordCompletion(emit);
+  }
+
+  void _onFinishDismissed(
+    ActiveMapFinishDismissed event,
+    Emitter<ActiveMapState> emit,
+  ) {
+    emit(
+      state.copyWith(
+        finishStatus: ActiveMapFinishStatus.running,
+        finishCountdownSeconds: 0,
+        finishPromptDismissed: true,
+        finishMessage: 'Charkh is still active.',
+      ),
+    );
   }
 
   void _onCameraLocked(
@@ -561,6 +654,52 @@ class ActiveMapBloc extends Bloc<ActiveMapEvent, ActiveMapState> {
     );
   }
 
+  Future<void> _recordCompletion(Emitter<ActiveMapState> emit) async {
+    if (state.finishStatus == ActiveMapFinishStatus.recorded) {
+      return;
+    }
+    final charkh = state.charkh;
+    final startedAt = _startedAt;
+    if (charkh == null || startedAt == null) {
+      return;
+    }
+
+    try {
+      final profile = await profileRepository.getProfile();
+      final userName = _profileDisplayName(profile.firstName, profile.lastName);
+      final elapsedSeconds = max(
+        state.elapsedSeconds,
+        state.fixedRouteDurationSeconds,
+      );
+      await charkhHistoryRepository.recordCompletedCharkh(
+        charkh: charkh,
+        userName: userName,
+        startedAt: startedAt,
+        completedAt: DateTime.now(),
+        elapsedSeconds: elapsedSeconds,
+        etaSeconds: state.fixedRouteDurationSeconds,
+      );
+      await activeRouteRepository.clearActiveRoute();
+      _timer?.cancel();
+      emit(
+        state.copyWith(
+          elapsedSeconds: elapsedSeconds,
+          finishStatus: ActiveMapFinishStatus.recorded,
+          finishCountdownSeconds: 0,
+          finishMessage: 'Charkh recorded to history.',
+          panelState: ActiveMapPanelState.expanded,
+        ),
+      );
+    } catch (error) {
+      emit(
+        state.copyWith(
+          finishMessage: error.toString(),
+          panelState: ActiveMapPanelState.expanded,
+        ),
+      );
+    }
+  }
+
   @override
   Future<void> close() async {
     _timer?.cancel();
@@ -589,6 +728,15 @@ const _minimumBearingDistanceMeters = 3.0;
 const _headingSmoothingFactor = 0.22;
 const _compassHeadingSmoothingFactor = 0.42;
 const _minimumCompassHeadingDeltaDegrees = 0.6;
+const _finishCountdownSeconds = 10;
+
+String _profileDisplayName(String firstName, String lastName) {
+  final joined = [
+    firstName.trim(),
+    lastName.trim(),
+  ].where((part) => part.isNotEmpty).join(' ');
+  return joined.isEmpty ? 'empty' : joined;
+}
 
 double? _headingForLocation(
   LiveUserLocation location,

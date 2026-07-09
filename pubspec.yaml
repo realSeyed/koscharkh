@@ -40,6 +40,7 @@ dependencies:
   flutter_map: any
   flutter_svg: any
   geolocator: any
+  google_fonts: any
   go_router: any
   http: any
   isar: any

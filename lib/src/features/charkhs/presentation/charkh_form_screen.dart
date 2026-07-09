@@ -78,6 +78,7 @@ class CharkhFormScreen extends StatelessWidget {
                         '/destination/${state.destinations[i].stableId}/edit',
                         extra: DestinationFormArgs(
                           draft: state.destinations[i],
+                          canSaveToLibrary: true,
                         ),
                       );
                       if (result != null && context.mounted) {
@@ -102,9 +103,23 @@ class CharkhFormScreen extends StatelessWidget {
                   onPressed: () async {
                     final result = await context.push<DestinationDraft>(
                       '/destination/new',
+                      extra: const DestinationFormArgs(canSaveToLibrary: true),
                     );
                     if (result != null && context.mounted) {
                       cubit.addDestination(result);
+                    }
+                  },
+                ),
+                const SizedBox(height: 8),
+                KosButton(
+                  text: '+ Use Saved Destination',
+                  variant: KosButtonVariant.secondary,
+                  onPressed: () async {
+                    final result = await context.push<DestinationDraft>(
+                      '/destinations/select',
+                    );
+                    if (result != null && context.mounted) {
+                      cubit.addSavedDestination(result);
                     }
                   },
                 ),

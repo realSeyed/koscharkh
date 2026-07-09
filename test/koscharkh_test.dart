@@ -5,6 +5,8 @@ import 'package:koscharkh/src/features/locations/domain/coordinates.dart';
 import 'package:koscharkh/src/features/routes/data/directions_service.dart';
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
   test('formatClock renders mm:ss values', () {
     expect(formatClock(0), '0:00');
     expect(formatClock(30), '0:30');
