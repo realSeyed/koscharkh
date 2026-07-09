@@ -66,7 +66,8 @@ class DestinationFormScreen extends StatelessWidget {
                     }
                   },
                 ),
-                if (state.canSaveToLibrary) ...[
+                if (state.canSaveToLibrary &&
+                    !state.isAlreadySavedToLibrary) ...[
                   const SizedBox(height: 12),
                   _SaveToLibraryToggle(
                     value: state.saveToLibrary,

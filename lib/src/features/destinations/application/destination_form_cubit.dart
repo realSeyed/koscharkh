@@ -15,6 +15,7 @@ class DestinationFormState extends Equatable {
     this.stableId,
     this.location,
     this.canSaveToLibrary = false,
+    this.isAlreadySavedToLibrary = false,
     this.saveToLibrary = false,
     this.validationMessage,
     this.submittedDraft,
@@ -25,6 +26,7 @@ class DestinationFormState extends Equatable {
   final String? stableId;
   final LocationSelection? location;
   final bool canSaveToLibrary;
+  final bool isAlreadySavedToLibrary;
   final bool saveToLibrary;
   final String? validationMessage;
   final DestinationDraft? submittedDraft;
@@ -35,6 +37,7 @@ class DestinationFormState extends Equatable {
     String? stableId,
     LocationSelection? location,
     bool? canSaveToLibrary,
+    bool? isAlreadySavedToLibrary,
     bool? saveToLibrary,
     Object? validationMessage = _unchanged,
     DestinationDraft? submittedDraft,
@@ -45,6 +48,8 @@ class DestinationFormState extends Equatable {
       stableId: stableId ?? this.stableId,
       location: location ?? this.location,
       canSaveToLibrary: canSaveToLibrary ?? this.canSaveToLibrary,
+      isAlreadySavedToLibrary:
+          isAlreadySavedToLibrary ?? this.isAlreadySavedToLibrary,
       saveToLibrary: saveToLibrary ?? this.saveToLibrary,
       validationMessage: validationMessage == _unchanged
           ? this.validationMessage
@@ -60,6 +65,7 @@ class DestinationFormState extends Equatable {
     stableId,
     location,
     canSaveToLibrary,
+    isAlreadySavedToLibrary,
     saveToLibrary,
     validationMessage,
     submittedDraft,
@@ -71,7 +77,8 @@ class DestinationFormCubit extends Cubit<DestinationFormState> {
     DestinationDraft? draft, {
     this.destinationLibraryRepository,
     bool canSaveToLibrary = false,
-  }) : super(
+  }) : _savedStatusRequest = 0,
+       super(
          DestinationFormState(
            name: draft?.name ?? '',
            description: draft?.description ?? '',
@@ -84,24 +91,56 @@ class DestinationFormCubit extends Cubit<DestinationFormState> {
                    address: draft.address,
                  ),
          ),
-       );
+       ) {
+    if (canSaveToLibrary) {
+      refreshSavedStatus();
+    }
+  }
 
   final DestinationLibraryRepository? destinationLibraryRepository;
+  int _savedStatusRequest;
 
   void nameChanged(String value) {
     emit(state.copyWith(name: value, validationMessage: null));
+    refreshSavedStatus();
   }
 
   void descriptionChanged(String value) {
     emit(state.copyWith(description: value, validationMessage: null));
+    refreshSavedStatus();
   }
 
   void locationChanged(LocationSelection selection) {
     emit(state.copyWith(location: selection, validationMessage: null));
+    refreshSavedStatus();
   }
 
   void saveToLibraryChanged(bool value) {
+    if (state.isAlreadySavedToLibrary) {
+      emit(state.copyWith(saveToLibrary: false, validationMessage: null));
+      return;
+    }
     emit(state.copyWith(saveToLibrary: value, validationMessage: null));
+  }
+
+  Future<void> refreshSavedStatus() async {
+    final repository = destinationLibraryRepository;
+    if (!state.canSaveToLibrary || repository == null) {
+      return;
+    }
+    final request = ++_savedStatusRequest;
+    final alreadySaved = await repository.findMatchingDestination(
+      _draftFromState(),
+    );
+    if (request != _savedStatusRequest || isClosed) {
+      return;
+    }
+    emit(
+      state.copyWith(
+        isAlreadySavedToLibrary: alreadySaved != null,
+        saveToLibrary: alreadySaved == null ? state.saveToLibrary : false,
+      ),
+    );
   }
 
   Future<void> submit() async {
@@ -109,15 +148,9 @@ class DestinationFormCubit extends Cubit<DestinationFormState> {
       emit(state.copyWith(validationMessage: 'Name is required.'));
       return;
     }
-    final draft = DestinationDraft(
-      stableId: state.stableId ?? 'dest-${_uuid.v4()}',
-      name: state.name.trim(),
-      description: state.description.trim(),
-      coordinates: state.location?.coordinates,
-      address: state.location?.address,
-    );
+    final draft = _draftFromState();
 
-    if (state.saveToLibrary) {
+    if (state.saveToLibrary && !state.isAlreadySavedToLibrary) {
       final repository = destinationLibraryRepository;
       if (repository == null) {
         emit(
@@ -138,6 +171,16 @@ class DestinationFormCubit extends Cubit<DestinationFormState> {
     }
 
     emit(state.copyWith(validationMessage: null, submittedDraft: draft));
+  }
+
+  DestinationDraft _draftFromState() {
+    return DestinationDraft(
+      stableId: state.stableId ?? 'dest-${_uuid.v4()}',
+      name: state.name.trim(),
+      description: state.description.trim(),
+      coordinates: state.location?.coordinates,
+      address: state.location?.address,
+    );
   }
 }
 
