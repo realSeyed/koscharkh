@@ -20,11 +20,29 @@ class DestinationLibraryRepository {
     return record == null ? null : _toDraft(record);
   }
 
+  Future<DestinationDraft?> findMatchingDestination(
+    DestinationDraft destination,
+  ) async {
+    final records = await _isar.savedDestinationRecords.where().findAll();
+    for (final record in records) {
+      if (_matches(record, destination)) {
+        return _toDraft(record);
+      }
+    }
+    return null;
+  }
+
   Future<void> saveDestination(DestinationDraft destination) async {
     final now = DateTime.now();
     final existing = await _isar.savedDestinationRecords.getByStableId(
       destination.stableId,
     );
+    final matching = existing == null
+        ? await findMatchingDestination(destination)
+        : null;
+    if (matching != null) {
+      return;
+    }
     await _isar.writeTxn(() async {
       final record = existing ?? SavedDestinationRecord();
       record
@@ -59,5 +77,22 @@ class DestinationLibraryRepository {
             ),
       address: record.address,
     );
+  }
+
+  bool _matches(SavedDestinationRecord record, DestinationDraft destination) {
+    final coordinates = destination.coordinates;
+    return _sameText(record.name, destination.name) &&
+        _sameText(record.description, destination.description) &&
+        _sameNullableText(record.address, destination.address) &&
+        record.latitude == coordinates?.latitude &&
+        record.longitude == coordinates?.longitude;
+  }
+
+  bool _sameText(String a, String b) {
+    return a.trim().toLowerCase() == b.trim().toLowerCase();
+  }
+
+  bool _sameNullableText(String? a, String? b) {
+    return (a ?? '').trim().toLowerCase() == (b ?? '').trim().toLowerCase();
   }
 }
