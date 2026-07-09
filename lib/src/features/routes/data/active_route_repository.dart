@@ -27,4 +27,10 @@ class ActiveRouteRepository {
       await _isar.activeRouteRecords.put(record);
     });
   }
+
+  Future<void> clearActiveRoute() async {
+    await _isar.writeTxn(() async {
+      await _isar.activeRouteRecords.delete(1);
+    });
+  }
 }

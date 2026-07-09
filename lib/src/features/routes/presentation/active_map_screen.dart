@@ -12,8 +12,10 @@ import '../../charkhs/domain/charkh.dart';
 import '../../locations/data/compass_heading_service.dart';
 import '../../locations/data/current_location_service.dart';
 import '../../locations/domain/coordinates.dart';
+import '../../profile/data/profile_repository.dart';
 import '../application/active_route_bloc.dart';
 import '../data/active_route_repository.dart';
+import '../data/charkh_history_repository.dart';
 import '../data/directions_service.dart';
 
 class ActiveMapScreen extends StatelessWidget {
@@ -22,6 +24,8 @@ class ActiveMapScreen extends StatelessWidget {
     required this.charkhStableId,
     required this.charkhRepository,
     required this.activeRouteRepository,
+    required this.charkhHistoryRepository,
+    required this.profileRepository,
     required this.directionsService,
     required this.currentLocationService,
     required this.compassHeadingService,
@@ -30,6 +34,8 @@ class ActiveMapScreen extends StatelessWidget {
   final String charkhStableId;
   final CharkhRepository charkhRepository;
   final ActiveRouteRepository activeRouteRepository;
+  final CharkhHistoryRepository charkhHistoryRepository;
+  final ProfileRepository profileRepository;
   final DirectionsService directionsService;
   final CurrentLocationService currentLocationService;
   final CompassHeadingService compassHeadingService;
@@ -56,6 +62,8 @@ class ActiveMapScreen extends StatelessWidget {
         return BlocProvider(
           create: (_) => ActiveMapBloc(
             activeRouteRepository: activeRouteRepository,
+            charkhHistoryRepository: charkhHistoryRepository,
+            profileRepository: profileRepository,
             directionsService: directionsService,
             currentLocationService: currentLocationService,
             compassHeadingService: compassHeadingService,
@@ -600,6 +608,14 @@ class _ExpandedPanelDetails extends StatelessWidget {
           value: formatClock(state.fixedRouteDurationSeconds),
         ),
         _StatusRow(label: 'Next:', value: state.nextDestination),
+        if (state.isFinishPromptVisible) ...[
+          const SizedBox(height: 10),
+          _FinishPrompt(state: state),
+        ],
+        if (state.finishMessage != null && state.finishMessage!.isNotEmpty) ...[
+          const SizedBox(height: 8),
+          _FinishMessageText(state.finishMessage!, isSuccess: state.isFinished),
+        ],
         if (routeMessage != null && routeMessage.isNotEmpty) ...[
           const SizedBox(height: 8),
           _MessageText(routeMessage),
@@ -609,6 +625,74 @@ class _ExpandedPanelDetails extends StatelessWidget {
           _MessageText(locationMessage),
         ],
       ],
+    );
+  }
+}
+
+class _FinishPrompt extends StatelessWidget {
+  const _FinishPrompt({required this.state});
+
+  final ActiveMapState state;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      color: context.colors.surfaceMuted,
+      padding: const EdgeInsets.all(12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Charkh finished. Record it now or it will be saved automatically.',
+            style: Theme.of(context).textTheme.bodySmall,
+          ),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              Expanded(
+                child: KosButton(
+                  text: 'Record (${state.finishCountdownSeconds})',
+                  height: 34,
+                  onPressed: () => context.read<ActiveMapBloc>().add(
+                    const ActiveMapFinishConfirmed(),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: KosButton(
+                  text: 'Keep Going',
+                  height: 34,
+                  variant: KosButtonVariant.secondary,
+                  onPressed: () => context.read<ActiveMapBloc>().add(
+                    const ActiveMapFinishDismissed(),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _FinishMessageText extends StatelessWidget {
+  const _FinishMessageText(this.message, {required this.isSuccess});
+
+  final String message;
+  final bool isSuccess;
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      message,
+      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+        color: isSuccess ? context.colors.success : context.colors.warning,
+      ),
+      maxLines: 2,
+      overflow: TextOverflow.ellipsis,
     );
   }
 }

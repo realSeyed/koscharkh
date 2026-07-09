@@ -43,6 +43,22 @@ class DestinationRecord {
 }
 
 @collection
+class SavedDestinationRecord {
+  Id id = Isar.autoIncrement;
+
+  @Index(unique: true, replace: true)
+  late String stableId;
+
+  late String name;
+  late String description;
+  double? latitude;
+  double? longitude;
+  String? address;
+  late DateTime createdAt;
+  late DateTime updatedAt;
+}
+
+@collection
 class RouteCacheRecord {
   Id id = Isar.autoIncrement;
 
@@ -65,4 +81,24 @@ class ActiveRouteRecord {
   int elapsedSeconds = 0;
   int etaSeconds = 0;
   int currentDestinationIndex = 0;
+}
+
+@collection
+class CharkhHistoryRecord {
+  Id id = Isar.autoIncrement;
+
+  @Index(unique: true, replace: true)
+  late String stableId;
+
+  @Index()
+  late String charkhStableId;
+
+  late String charkhName;
+  late String userName;
+  late DateTime startedAt;
+  late DateTime completedAt;
+  int elapsedSeconds = 0;
+  int etaSeconds = 0;
+  int destinationCount = 0;
+  String? finalDestinationName;
 }

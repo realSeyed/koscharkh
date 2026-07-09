@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 @immutable
 class KoscharkhColors extends ThemeExtension<KoscharkhColors> {
@@ -295,9 +296,9 @@ const koscharkhRadius = KoscharkhRadius(sm: 8, md: 12, lg: 16, pill: 999);
 
 ThemeData buildKoscharkhDarkTheme() {
   const colors = koscharkhDarkColors;
-  // TODO: Bundle JetBrains Mono font files when the final app assets are supplied.
-  const fontFamily = 'JetBrains Mono';
-  const fallback = ['monospace'];
+  final defaultTextTheme = GoogleFonts.jetBrainsMonoTextTheme(
+    ThemeData.dark().textTheme,
+  ).apply(bodyColor: colors.onSurface, displayColor: colors.onSurface);
 
   TextStyle base({
     required double size,
@@ -305,10 +306,8 @@ ThemeData buildKoscharkhDarkTheme() {
     required double height,
     Color color = const Color(0xFFF2F4F8),
   }) {
-    return TextStyle(
+    return GoogleFonts.jetBrainsMono(
       color: color,
-      fontFamily: fontFamily,
-      fontFamilyFallback: fallback,
       fontSize: size,
       fontWeight: weight,
       height: height,
@@ -316,7 +315,7 @@ ThemeData buildKoscharkhDarkTheme() {
     );
   }
 
-  final textTheme = TextTheme(
+  final textTheme = defaultTextTheme.copyWith(
     titleLarge: base(size: 20, weight: FontWeight.w500, height: 1.3),
     bodyLarge: base(size: 16, weight: FontWeight.w400, height: 1.45),
     bodyMedium: base(size: 16, weight: FontWeight.w400, height: 1.45),

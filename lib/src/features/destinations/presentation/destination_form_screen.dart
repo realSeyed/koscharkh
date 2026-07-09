@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/theme/koscharkh_theme.dart';
 import '../../../core/widgets/app_feedback.dart';
 import '../../../core/widgets/components.dart';
 import '../../locations/domain/location_selection.dart';
@@ -65,12 +66,66 @@ class DestinationFormScreen extends StatelessWidget {
                     }
                   },
                 ),
+                if (state.canSaveToLibrary) ...[
+                  const SizedBox(height: 12),
+                  _SaveToLibraryToggle(
+                    value: state.saveToLibrary,
+                    onChanged: cubit.saveToLibraryChanged,
+                  ),
+                ],
                 ErrorCaption(state.validationMessage),
                 const SizedBox(height: 14),
                 KosButton(text: 'Submit', onPressed: cubit.submit),
               ],
             );
           },
+        ),
+      ),
+    );
+  }
+}
+
+class _SaveToLibraryToggle extends StatelessWidget {
+  const _SaveToLibraryToggle({required this.value, required this.onChanged});
+
+  final bool value;
+  final ValueChanged<bool> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: context.colors.surfaceMuted,
+      child: InkWell(
+        onTap: () => onChanged(!value),
+        child: SizedBox(
+          height: 51,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Row(
+              children: [
+                SizedBox(
+                  width: 24,
+                  height: 24,
+                  child: Checkbox(
+                    value: value,
+                    onChanged: (next) => onChanged(next ?? false),
+                    activeColor: context.colors.primary,
+                    checkColor: context.colors.onPrimary,
+                    side: BorderSide(color: context.colors.onSurface),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    'Save to Saved Destinations',
+                    style: Theme.of(context).textTheme.bodySmall,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
+          ),
         ),
       ),
     );

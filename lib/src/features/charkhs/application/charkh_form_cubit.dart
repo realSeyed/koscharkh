@@ -134,6 +134,10 @@ class CharkhFormCubit extends Cubit<CharkhFormState> {
     );
   }
 
+  void addSavedDestination(DestinationDraft draft) {
+    addDestination(draft.copyWith(stableId: 'dest-${_uuid.v4()}'));
+  }
+
   void updateDestination(DestinationDraft draft) {
     emit(
       state.copyWith(

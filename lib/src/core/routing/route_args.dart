@@ -16,9 +16,10 @@ class RoutePreviewArgs {
 }
 
 class DestinationFormArgs {
-  const DestinationFormArgs({this.draft});
+  const DestinationFormArgs({this.draft, this.canSaveToLibrary = false});
 
   final DestinationDraft? draft;
+  final bool canSaveToLibrary;
 }
 
 class SelectLocationArgs {
