@@ -15,6 +15,7 @@ import '../data/active_route_repository.dart';
 import '../data/charkh_history_repository.dart';
 import '../data/directions_service.dart';
 import '../domain/route_data.dart';
+import '../domain/walking_route_progress.dart';
 
 enum ActiveMapStatus { initial, loading, ready, failure }
 
@@ -29,8 +30,12 @@ class ActiveMapState extends Equatable {
     this.destinations = const [],
     this.route,
     this.fixedRouteDurationSeconds = 0,
+    this.estimatedRemainingSeconds = 0,
+    this.remainingDistanceMeters = 0,
+    this.distanceToNextDestinationMeters,
     this.elapsedSeconds = 0,
     this.currentDestinationIndex = 0,
+    this.routeStartDestinationIndex = 0,
     this.userLocation,
     this.deviceHeadingDegrees,
     this.userHeadingDegrees,
@@ -45,8 +50,10 @@ class ActiveMapState extends Equatable {
     this.finishCountdownSeconds = 0,
     this.finishPromptDismissed = false,
     this.isOpeningLocationSettings = false,
+    this.isOffRoute = false,
     this.routeMessage,
     this.locationMessage,
+    this.navigationMessage,
     this.finishMessage,
   });
 
@@ -55,8 +62,12 @@ class ActiveMapState extends Equatable {
   final List<DestinationDraft> destinations;
   final RouteData? route;
   final int fixedRouteDurationSeconds;
+  final int estimatedRemainingSeconds;
+  final double remainingDistanceMeters;
+  final double? distanceToNextDestinationMeters;
   final int elapsedSeconds;
   final int currentDestinationIndex;
+  final int routeStartDestinationIndex;
   final Coordinates? userLocation;
   final double? deviceHeadingDegrees;
   final double? userHeadingDegrees;
@@ -71,8 +82,10 @@ class ActiveMapState extends Equatable {
   final int finishCountdownSeconds;
   final bool finishPromptDismissed;
   final bool isOpeningLocationSettings;
+  final bool isOffRoute;
   final String? routeMessage;
   final String? locationMessage;
+  final String? navigationMessage;
   final String? finishMessage;
 
   bool get isPanelExpanded => panelState == ActiveMapPanelState.expanded;
@@ -91,8 +104,10 @@ class ActiveMapState extends Equatable {
     if (destinations.isEmpty) {
       return 'empty';
     }
-    return destinations[min(currentDestinationIndex, destinations.length - 1)]
-        .name;
+    if (currentDestinationIndex >= destinations.length) {
+      return 'Completed';
+    }
+    return destinations[currentDestinationIndex].name;
   }
 
   ActiveMapState copyWith({
@@ -101,8 +116,12 @@ class ActiveMapState extends Equatable {
     List<DestinationDraft>? destinations,
     Object? route = _unchanged,
     int? fixedRouteDurationSeconds,
+    int? estimatedRemainingSeconds,
+    double? remainingDistanceMeters,
+    Object? distanceToNextDestinationMeters = _unchanged,
     int? elapsedSeconds,
     int? currentDestinationIndex,
+    int? routeStartDestinationIndex,
     Object? userLocation = _unchanged,
     Object? deviceHeadingDegrees = _unchanged,
     Object? userHeadingDegrees = _unchanged,
@@ -117,8 +136,10 @@ class ActiveMapState extends Equatable {
     int? finishCountdownSeconds,
     bool? finishPromptDismissed,
     bool? isOpeningLocationSettings,
+    bool? isOffRoute,
     Object? routeMessage = _unchanged,
     Object? locationMessage = _unchanged,
+    Object? navigationMessage = _unchanged,
     Object? finishMessage = _unchanged,
   }) {
     return ActiveMapState(
@@ -128,9 +149,19 @@ class ActiveMapState extends Equatable {
       route: route == _unchanged ? this.route : route as RouteData?,
       fixedRouteDurationSeconds:
           fixedRouteDurationSeconds ?? this.fixedRouteDurationSeconds,
+      estimatedRemainingSeconds:
+          estimatedRemainingSeconds ?? this.estimatedRemainingSeconds,
+      remainingDistanceMeters:
+          remainingDistanceMeters ?? this.remainingDistanceMeters,
+      distanceToNextDestinationMeters:
+          distanceToNextDestinationMeters == _unchanged
+          ? this.distanceToNextDestinationMeters
+          : distanceToNextDestinationMeters as double?,
       elapsedSeconds: elapsedSeconds ?? this.elapsedSeconds,
       currentDestinationIndex:
           currentDestinationIndex ?? this.currentDestinationIndex,
+      routeStartDestinationIndex:
+          routeStartDestinationIndex ?? this.routeStartDestinationIndex,
       userLocation: userLocation == _unchanged
           ? this.userLocation
           : userLocation as Coordinates?,
@@ -157,12 +188,16 @@ class ActiveMapState extends Equatable {
           finishPromptDismissed ?? this.finishPromptDismissed,
       isOpeningLocationSettings:
           isOpeningLocationSettings ?? this.isOpeningLocationSettings,
+      isOffRoute: isOffRoute ?? this.isOffRoute,
       routeMessage: routeMessage == _unchanged
           ? this.routeMessage
           : routeMessage as String?,
       locationMessage: locationMessage == _unchanged
           ? this.locationMessage
           : locationMessage as String?,
+      navigationMessage: navigationMessage == _unchanged
+          ? this.navigationMessage
+          : navigationMessage as String?,
       finishMessage: finishMessage == _unchanged
           ? this.finishMessage
           : finishMessage as String?,
@@ -176,8 +211,12 @@ class ActiveMapState extends Equatable {
     destinations,
     route,
     fixedRouteDurationSeconds,
+    estimatedRemainingSeconds,
+    remainingDistanceMeters,
+    distanceToNextDestinationMeters,
     elapsedSeconds,
     currentDestinationIndex,
+    routeStartDestinationIndex,
     userLocation,
     deviceHeadingDegrees,
     userHeadingDegrees,
@@ -192,8 +231,10 @@ class ActiveMapState extends Equatable {
     finishCountdownSeconds,
     finishPromptDismissed,
     isOpeningLocationSettings,
+    isOffRoute,
     routeMessage,
     locationMessage,
+    navigationMessage,
     finishMessage,
   ];
 }
@@ -277,6 +318,19 @@ class _ActiveMapUserLocationChanged extends ActiveMapEvent {
   List<Object?> get props => [location];
 }
 
+class _ActiveMapRerouteRequested extends ActiveMapEvent {
+  const _ActiveMapRerouteRequested({
+    required this.location,
+    required this.destinationIndex,
+  });
+
+  final Coordinates location;
+  final int destinationIndex;
+
+  @override
+  List<Object?> get props => [location, destinationIndex];
+}
+
 class _ActiveMapCompassHeadingChanged extends ActiveMapEvent {
   const _ActiveMapCompassHeadingChanged(this.headingDegrees);
 
@@ -318,6 +372,7 @@ class ActiveMapBloc extends Bloc<ActiveMapEvent, ActiveMapState> {
     on<ActiveMapLocationSettingsRequested>(_onLocationSettingsRequested);
     on<ActiveMapLocationRetryRequested>(_onLocationRetryRequested);
     on<_ActiveMapUserLocationChanged>(_onUserLocationChanged);
+    on<_ActiveMapRerouteRequested>(_onRerouteRequested);
     on<_ActiveMapCompassHeadingChanged>(_onCompassHeadingChanged);
     on<_ActiveMapLocationFailed>(_onLocationFailed);
   }
@@ -333,6 +388,11 @@ class ActiveMapBloc extends Bloc<ActiveMapEvent, ActiveMapState> {
   StreamSubscription<LiveUserLocation>? _locationSubscription;
   StreamSubscription<double>? _headingSubscription;
   DateTime? _startedAt;
+  DateTime? _lastRerouteAt;
+  DateTime? _lastProgressSampleAt;
+  int _arrivalCandidateSamples = 0;
+  int _offRouteSamples = 0;
+  bool _isRerouting = false;
 
   Future<void> _onStarted(
     ActiveMapStarted event,
@@ -342,15 +402,26 @@ class ActiveMapBloc extends Bloc<ActiveMapEvent, ActiveMapState> {
     await _locationSubscription?.cancel();
     await _headingSubscription?.cancel();
     _startedAt = DateTime.now();
+    _lastRerouteAt = null;
+    _lastProgressSampleAt = null;
+    _arrivalCandidateSamples = 0;
+    _offRouteSamples = 0;
+    _isRerouting = false;
 
     final destinations = event.charkh.destinations
         .map(DestinationDraft.fromDestination)
+        .where((destination) => destination.coordinates != null)
         .toList(growable: false);
+    final skippedDestinationCount =
+        event.charkh.destinations.length - destinations.length;
     emit(
       ActiveMapState(
         status: ActiveMapStatus.loading,
         charkh: event.charkh,
         destinations: destinations,
+        routeMessage: skippedDestinationCount == 0
+            ? null
+            : '$skippedDestinationCount destination(s) without a location were skipped.',
       ),
     );
     await _startRouteFromCurrentLocation(event.charkh, emit);
@@ -360,9 +431,9 @@ class ActiveMapBloc extends Bloc<ActiveMapEvent, ActiveMapState> {
     Charkh charkh,
     Emitter<ActiveMapState> emit,
   ) async {
-    final Coordinates origin;
+    final LiveUserLocation originLocation;
     try {
-      origin = await currentLocationService.getCurrentCoordinates();
+      originLocation = await currentLocationService.getCurrentLiveLocation();
     } catch (error) {
       final message = _normalizeLocationErrorMessage(error);
       emit(
@@ -374,6 +445,7 @@ class ActiveMapBloc extends Bloc<ActiveMapEvent, ActiveMapState> {
       );
       return;
     }
+    final origin = originLocation.coordinates;
 
     final routeCoordinates = [
       origin,
@@ -415,9 +487,16 @@ class ActiveMapBloc extends Bloc<ActiveMapEvent, ActiveMapState> {
         status: ActiveMapStatus.ready,
         route: route,
         fixedRouteDurationSeconds: fixedDuration,
+        estimatedRemainingSeconds: fixedDuration,
+        remainingDistanceMeters: route.distanceMeters,
+        distanceToNextDestinationMeters: state.destinations.isEmpty
+            ? null
+            : distanceMeters(origin, state.destinations.first.coordinates!),
         userLocation: origin,
-        routeMessage: routeMessage,
+        routeMessage: routeMessage ?? state.routeMessage,
         locationMessage: null,
+        navigationMessage: null,
+        isOffRoute: false,
         isOpeningLocationSettings: false,
       ),
     );
@@ -464,20 +543,11 @@ class ActiveMapBloc extends Bloc<ActiveMapEvent, ActiveMapState> {
     Emitter<ActiveMapState> emit,
   ) async {
     final charkh = state.charkh;
-    if (charkh == null ||
-        state.fixedRouteDurationSeconds <= 0 ||
-        state.isFinished) {
+    if (charkh == null || state.isFinished) {
       return;
     }
     final elapsed = state.elapsedSeconds + 1;
-    var nextState = state.copyWith(
-      elapsedSeconds: elapsed,
-      currentDestinationIndex: _currentDestinationIndex(
-        elapsedSeconds: elapsed,
-        fixedRouteDurationSeconds: state.fixedRouteDurationSeconds,
-        destinationCount: state.destinations.length,
-      ),
-    );
+    var nextState = state.copyWith(elapsedSeconds: elapsed);
 
     if (state.finishStatus == ActiveMapFinishStatus.prompting) {
       final countdown = max(0, state.finishCountdownSeconds - 1);
@@ -493,19 +563,10 @@ class ActiveMapBloc extends Bloc<ActiveMapEvent, ActiveMapState> {
       return;
     }
 
-    if (state.finishStatus == ActiveMapFinishStatus.running &&
-        !state.finishPromptDismissed &&
-        elapsed >= state.fixedRouteDurationSeconds) {
-      nextState = nextState.copyWith(
-        finishStatus: ActiveMapFinishStatus.prompting,
-        finishCountdownSeconds: _finishCountdownSeconds,
-        panelState: ActiveMapPanelState.expanded,
-        finishMessage: null,
-      );
-    }
-
     emit(nextState);
-    await _persist(nextState);
+    if (elapsed % _activeRoutePersistenceIntervalSeconds == 0) {
+      await _persist(nextState);
+    }
   }
 
   void _onPanelToggled(
@@ -670,11 +731,12 @@ class ActiveMapBloc extends Bloc<ActiveMapEvent, ActiveMapState> {
     await _startRouteFromCurrentLocation(charkh, emit);
   }
 
-  void _onUserLocationChanged(
+  Future<void> _onUserLocationChanged(
     _ActiveMapUserLocationChanged event,
     Emitter<ActiveMapState> emit,
-  ) {
-    _emitUserLocation(event.location, emit);
+  ) async {
+    emit(_stateWithUserLocation(event.location));
+    await _updateWalkingRouteProgress(event.location, emit);
   }
 
   void _onCompassHeadingChanged(
@@ -702,10 +764,7 @@ class ActiveMapBloc extends Bloc<ActiveMapEvent, ActiveMapState> {
     );
   }
 
-  void _emitUserLocation(
-    LiveUserLocation location,
-    Emitter<ActiveMapState> emit,
-  ) {
+  ActiveMapState _stateWithUserLocation(LiveUserLocation location) {
     final rawHeading = _headingForLocation(location, state.userLocation);
     final smoothedHeading = rawHeading == null
         ? state.smoothedCameraHeadingDegrees
@@ -717,15 +776,255 @@ class ActiveMapBloc extends Bloc<ActiveMapEvent, ActiveMapState> {
             _headingSmoothingFactor,
           );
 
-    emit(
-      state.copyWith(
-        userLocation: location.coordinates,
-        userHeadingDegrees: rawHeading,
-        smoothedCameraHeadingDegrees: smoothedHeading,
-        userSpeedMetersPerSecond: location.speedMetersPerSecond,
-        locationMessage: null,
+    return state.copyWith(
+      userLocation: location.coordinates,
+      userHeadingDegrees: rawHeading,
+      smoothedCameraHeadingDegrees: smoothedHeading,
+      userSpeedMetersPerSecond: location.speedMetersPerSecond,
+      locationMessage: null,
+    );
+  }
+
+  Future<void> _updateWalkingRouteProgress(
+    LiveUserLocation location,
+    Emitter<ActiveMapState> emit,
+  ) async {
+    final route = state.route;
+    final destinationIndex = state.currentDestinationIndex;
+    if (state.status != ActiveMapStatus.ready ||
+        route == null ||
+        destinationIndex >= state.destinations.length ||
+        state.isFinished ||
+        !WalkingRouteProgressPolicy.isReliable(location, now: DateTime.now())) {
+      return;
+    }
+    if (location.timestamp != null &&
+        location.timestamp == _lastProgressSampleAt) {
+      return;
+    }
+    _lastProgressSampleAt = location.timestamp;
+
+    final legIndex = destinationIndex - state.routeStartDestinationIndex;
+    if (legIndex < 0 || legIndex >= route.legs.length) {
+      return;
+    }
+    final destination = state.destinations[destinationIndex];
+    final destinationCoordinates = destination.coordinates;
+    if (destinationCoordinates == null) {
+      return;
+    }
+
+    final projection = projectLocationOntoLeg(
+      location: location.coordinates,
+      leg: route.legs[legIndex],
+    );
+    final directDistance = distanceMeters(
+      location.coordinates,
+      destinationCoordinates,
+    );
+    final remaining = _remainingRouteProgress(
+      route: route,
+      activeLegIndex: legIndex,
+      projection: projection,
+    );
+    var progressState = state.copyWith(
+      estimatedRemainingSeconds: remaining.durationSeconds,
+      remainingDistanceMeters: remaining.distanceMeters,
+      distanceToNextDestinationMeters: directDistance,
+    );
+
+    final arrivalRadius = WalkingRouteProgressPolicy.arrivalRadius(
+      location.accuracyMeters,
+    );
+    final isArrivalCandidate =
+        directDistance <= arrivalRadius ||
+        (projection.remainingRouteDistanceMeters <=
+                WalkingRouteProgressPolicy.endpointRemainingDistanceMeters &&
+            directDistance <=
+                WalkingRouteProgressPolicy.endpointPassRadiusMeters);
+    if (isArrivalCandidate) {
+      _arrivalCandidateSamples += 1;
+    } else if (directDistance >=
+        WalkingRouteProgressPolicy.arrivalExitRadiusMeters) {
+      _arrivalCandidateSamples = 0;
+    }
+
+    if (_arrivalCandidateSamples >=
+        WalkingRouteProgressPolicy.arrivalConfirmationSamples) {
+      _arrivalCandidateSamples = 0;
+      _offRouteSamples = 0;
+      await _advanceToNextDestination(progressState, emit);
+      return;
+    }
+
+    if (route.source != 'mapbox') {
+      _offRouteSamples = 0;
+      emit(
+        progressState.copyWith(
+          isOffRoute: false,
+          navigationMessage: null,
+        ),
+      );
+      return;
+    }
+
+    final offRouteThreshold = WalkingRouteProgressPolicy.offRouteThreshold(
+      location.accuracyMeters,
+    );
+    if (projection.distanceFromRouteMeters > offRouteThreshold) {
+      _offRouteSamples += 1;
+    } else {
+      _offRouteSamples = 0;
+      if (progressState.isOffRoute && !_isRerouting) {
+        progressState = progressState.copyWith(
+          isOffRoute: false,
+          navigationMessage: null,
+        );
+      }
+    }
+
+    if (_offRouteSamples >=
+        WalkingRouteProgressPolicy.offRouteConfirmationSamples) {
+      progressState = progressState.copyWith(
+        isOffRoute: true,
+        navigationMessage: _isRerouting
+            ? 'Updating walking route...'
+            : 'You are off the walking route.',
+      );
+      emit(progressState);
+      _requestReroute(location.coordinates, destinationIndex);
+      return;
+    }
+
+    emit(progressState);
+  }
+
+  Future<void> _advanceToNextDestination(
+    ActiveMapState progressState,
+    Emitter<ActiveMapState> emit,
+  ) async {
+    final nextIndex = progressState.currentDestinationIndex + 1;
+    if (nextIndex >= progressState.destinations.length) {
+      final completedState = progressState.copyWith(
+        currentDestinationIndex: progressState.destinations.length,
+        estimatedRemainingSeconds: 0,
+        remainingDistanceMeters: 0,
+        distanceToNextDestinationMeters: null,
+        isOffRoute: false,
+        navigationMessage: null,
+        finishStatus: ActiveMapFinishStatus.prompting,
+        finishCountdownSeconds: _finishCountdownSeconds,
+        finishPromptDismissed: false,
+        finishMessage: null,
+        panelState: ActiveMapPanelState.expanded,
+      );
+      emit(completedState);
+      await _persist(completedState);
+      return;
+    }
+
+    final route = progressState.route!;
+    final nextLegIndex = nextIndex - progressState.routeStartDestinationIndex;
+    final remainingLegs = nextLegIndex >= 0 && nextLegIndex < route.legs.length
+        ? route.legs.skip(nextLegIndex)
+        : const Iterable<RouteLeg>.empty();
+    final nextState = progressState.copyWith(
+      currentDestinationIndex: nextIndex,
+      estimatedRemainingSeconds: remainingLegs.fold<int>(
+        0,
+        (sum, leg) => sum + leg.durationSeconds,
+      ),
+      remainingDistanceMeters: remainingLegs.fold<double>(
+        0,
+        (sum, leg) => sum + leg.distanceMeters,
+      ),
+      distanceToNextDestinationMeters: progressState.userLocation == null
+          ? null
+          : distanceMeters(
+              progressState.userLocation!,
+              progressState.destinations[nextIndex].coordinates!,
+            ),
+      isOffRoute: false,
+      navigationMessage: null,
+    );
+    emit(nextState);
+    await _persist(nextState);
+  }
+
+  void _requestReroute(Coordinates location, int destinationIndex) {
+    if (_isRerouting) {
+      return;
+    }
+    final now = DateTime.now();
+    if (_lastRerouteAt != null &&
+        now.difference(_lastRerouteAt!) <
+            WalkingRouteProgressPolicy.rerouteCooldown) {
+      return;
+    }
+    add(
+      _ActiveMapRerouteRequested(
+        location: location,
+        destinationIndex: destinationIndex,
       ),
     );
+  }
+
+  Future<void> _onRerouteRequested(
+    _ActiveMapRerouteRequested event,
+    Emitter<ActiveMapState> emit,
+  ) async {
+    if (_isRerouting ||
+        event.destinationIndex != state.currentDestinationIndex ||
+        event.destinationIndex >= state.destinations.length) {
+      return;
+    }
+    _isRerouting = true;
+    _lastRerouteAt = DateTime.now();
+    emit(
+      state.copyWith(
+        isOffRoute: true,
+        navigationMessage: 'Updating walking route...',
+      ),
+    );
+
+    try {
+      final remainingDestinations = state.destinations.skip(
+        event.destinationIndex,
+      );
+      final route = await directionsService.calculate([
+        event.location,
+        for (final destination in remainingDestinations)
+          destination.coordinates!,
+      ]);
+      if (event.destinationIndex != state.currentDestinationIndex) {
+        return;
+      }
+      _offRouteSamples = 0;
+      final reroutedState = state.copyWith(
+        route: route,
+        routeStartDestinationIndex: event.destinationIndex,
+        estimatedRemainingSeconds: route.durationSeconds,
+        remainingDistanceMeters: route.distanceMeters,
+        distanceToNextDestinationMeters: distanceMeters(
+          event.location,
+          state.destinations[event.destinationIndex].coordinates!,
+        ),
+        isOffRoute: false,
+        navigationMessage: null,
+        routeMessage: null,
+      );
+      emit(reroutedState);
+      await _persist(reroutedState);
+    } catch (error) {
+      emit(
+        state.copyWith(
+          isOffRoute: true,
+          navigationMessage: 'Could not update the walking route.',
+        ),
+      );
+    } finally {
+      _isRerouting = false;
+    }
   }
 
   void _onLocationFailed(
@@ -747,7 +1046,7 @@ class ActiveMapBloc extends Bloc<ActiveMapEvent, ActiveMapState> {
       charkhStableId: value.charkh!.stableId,
       startedAt: _startedAt!,
       elapsedSeconds: value.elapsedSeconds,
-      etaSeconds: value.fixedRouteDurationSeconds,
+      etaSeconds: value.estimatedRemainingSeconds,
       currentDestinationIndex: value.currentDestinationIndex,
     );
   }
@@ -765,10 +1064,7 @@ class ActiveMapBloc extends Bloc<ActiveMapEvent, ActiveMapState> {
     try {
       final profile = await profileRepository.getProfile();
       final userName = _profileDisplayName(profile.firstName, profile.lastName);
-      final elapsedSeconds = max(
-        state.elapsedSeconds,
-        state.fixedRouteDurationSeconds,
-      );
+      final elapsedSeconds = state.elapsedSeconds;
       await charkhHistoryRepository.recordCompletedCharkh(
         charkh: charkh,
         userName: userName,
@@ -807,16 +1103,33 @@ class ActiveMapBloc extends Bloc<ActiveMapEvent, ActiveMapState> {
   }
 }
 
-int _currentDestinationIndex({
-  required int elapsedSeconds,
-  required int fixedRouteDurationSeconds,
-  required int destinationCount,
+_RemainingRouteProgress _remainingRouteProgress({
+  required RouteData route,
+  required int activeLegIndex,
+  required RouteProjection projection,
 }) {
-  if (destinationCount <= 0 || fixedRouteDurationSeconds <= 0) {
-    return 0;
+  final activeLeg = route.legs[activeLegIndex];
+  final remainingFraction = (1 - projection.progress).clamp(0.0, 1.0);
+  var distance = activeLeg.distanceMeters * remainingFraction;
+  var duration = (activeLeg.durationSeconds * remainingFraction).round();
+  for (var i = activeLegIndex + 1; i < route.legs.length; i++) {
+    distance += route.legs[i].distanceMeters;
+    duration += route.legs[i].durationSeconds;
   }
-  final segment = max(1, fixedRouteDurationSeconds ~/ destinationCount);
-  return min(destinationCount - 1, elapsedSeconds ~/ segment);
+  return _RemainingRouteProgress(
+    distanceMeters: distance,
+    durationSeconds: duration,
+  );
+}
+
+class _RemainingRouteProgress {
+  const _RemainingRouteProgress({
+    required this.distanceMeters,
+    required this.durationSeconds,
+  });
+
+  final double distanceMeters;
+  final int durationSeconds;
 }
 
 const Object _unchanged = Object();
@@ -827,6 +1140,7 @@ const _headingSmoothingFactor = 0.22;
 const _compassHeadingSmoothingFactor = 0.42;
 const _minimumCompassHeadingDeltaDegrees = 0.6;
 const _finishCountdownSeconds = 10;
+const _activeRoutePersistenceIntervalSeconds = 5;
 const _locationServicesDisabledMessage = 'Location services are disabled.';
 const _locationSettingsPromptMessage =
     'Turn on location services, then return to KosCharkh.';

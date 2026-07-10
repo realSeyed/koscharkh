@@ -138,14 +138,20 @@ class KosMap extends StatelessWidget {
         continue;
       }
       final isActive =
-          activeDestinationIndex != null && i >= activeDestinationIndex!;
+          activeDestinationIndex != null && i == activeDestinationIndex;
+      final isReached =
+          activeDestinationIndex != null && i < activeDestinationIndex!;
       final size = KosMapMarker.sizeFor(isActive: isActive, enable: true);
       markers.add(
         Marker(
           point: coordinate.toLatLng(),
           width: size,
           height: size,
-          child: NumberMarker(number: i + 1, isActive: isActive),
+          child: NumberMarker(
+            number: i + 1,
+            isActive: isActive,
+            isReached: isReached,
+          ),
         ),
       );
     }
@@ -238,15 +244,23 @@ class NumberMarker extends StatelessWidget {
     super.key,
     required this.number,
     this.isActive = false,
+    this.isReached = false,
     this.enable = true,
   });
 
   final int number;
   final bool isActive;
+  final bool isReached;
   final bool enable;
 
   @override
   Widget build(BuildContext context) {
+    if (isReached) {
+      return Opacity(
+        opacity: 0.62,
+        child: KosMapMarker(isActive: false, enable: enable, icon: Icons.check),
+      );
+    }
     return KosMapMarker(isActive: isActive, enable: enable, text: '$number');
   }
 }

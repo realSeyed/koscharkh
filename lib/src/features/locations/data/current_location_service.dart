@@ -108,5 +108,7 @@ LiveUserLocation _toLiveUserLocation(Position position) {
     ),
     headingDegrees: heading,
     speedMetersPerSecond: speed,
+    accuracyMeters: position.accuracy,
+    timestamp: position.timestamp,
   );
 }
