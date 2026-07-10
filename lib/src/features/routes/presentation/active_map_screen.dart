@@ -640,9 +640,17 @@ class _ExpandedPanelDetails extends StatelessWidget {
         ),
         _StatusRow(
           label: 'ETA:',
-          value: formatClock(state.fixedRouteDurationSeconds),
+          value: formatClock(state.estimatedRemainingSeconds),
         ),
         _StatusRow(label: 'Next:', value: state.nextDestination),
+        if (state.navigationMessage != null &&
+            state.navigationMessage!.isNotEmpty) ...[
+          const SizedBox(height: 8),
+          _NavigationMessageText(
+            state.navigationMessage!,
+            isWarning: state.isOffRoute,
+          ),
+        ],
         if (state.isFinishPromptVisible) ...[
           const SizedBox(height: 10),
           _FinishPrompt(state: state),
@@ -725,6 +733,25 @@ class _FinishMessageText extends StatelessWidget {
       message,
       style: Theme.of(context).textTheme.bodySmall?.copyWith(
         color: isSuccess ? context.colors.success : context.colors.warning,
+      ),
+      maxLines: 2,
+      overflow: TextOverflow.ellipsis,
+    );
+  }
+}
+
+class _NavigationMessageText extends StatelessWidget {
+  const _NavigationMessageText(this.message, {required this.isWarning});
+
+  final String message;
+  final bool isWarning;
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      message,
+      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+        color: isWarning ? context.colors.warning : context.colors.onSurface,
       ),
       maxLines: 2,
       overflow: TextOverflow.ellipsis,
