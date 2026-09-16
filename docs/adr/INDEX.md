@@ -18,6 +18,7 @@ Each ADR progresses through the following standard lifecycle:
 | ID | Title | Status | Scope | Last Updated | Link |
 |---|---|---|---|---|---|
 | `0001` | Design System and UI Tokens Governance | `Accepted` | `lib/features/**/presentation/**` | 2026-09-16 | [`0001-design-system-and-ui-tokens.md`](0001-design-system-and-ui-tokens.md) |
+| `0003` | Coordinate Isolation and Mapbox Contracts | `Accepted` | `lib/src/features/**/domain/**, lib/src/features/**/data/**, lib/src/core/map/**` | 2026-09-17 | [`0003-coordinate-isolation-and-mapbox-contracts.md`](0003-coordinate-isolation-and-mapbox-contracts.md) |
 | `0004` | Isar Persistence and Cascade Rules | `Accepted` | `lib/src/core/storage/**, lib/src/features/**/data/**` | 2026-09-16 | [`0004-isar-persistence-and-cascade-rules.md`](0004-isar-persistence-and-cascade-rules.md) |
 
 ---
