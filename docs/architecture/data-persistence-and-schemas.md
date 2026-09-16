@@ -14,13 +14,13 @@ KosCharkh utilizes an embedded, zero-network, ACID-compliant local database powe
 
 1. **No `IsarLink` / `IsarLinks` Relations**:
    KosCharkh **MUST NOT** use Isar's built-in relation wrappers (`IsarLink<T>` or `IsarLinks<T>`).
-   - **Domain Decoupling**: Domain models ([`Charkh`](file:///f:/dev/koscharkh/lib/src/features/charkhs/domain/charkh.dart), [`Destination`](file:///f:/dev/koscharkh/lib/src/features/destinations/domain/destination.dart), [`Profile`](file:///f:/dev/koscharkh/lib/src/features/profile/domain/profile.dart)) remain pure Dart classes with zero imports from `package:isar/isar.dart`.
+   - **Domain Decoupling**: Domain models ([`Charkh`](../../lib/src/features/charkhs/domain/charkh.dart), [`Destination`](../../lib/src/features/destinations/domain/destination.dart), [`Profile`](../../lib/src/features/profile/domain/profile.dart)) remain pure Dart classes with zero imports from `package:isar/isar.dart`.
    - **Elimination of Asynchronous Lazy-Loading Pitfalls**: `IsarLink` relies on asynchronous loading (`await link.load()`) or synchronous access (`link.value`), which introduces race conditions, state tearing during widget rebuilds, and detached entity exceptions when accessed outside active database scopes.
    - **Snapshot Immutability & Equatable**: Domain entities are immutable and extend `Equatable`. Pure snapshots can be safely passed across BLoC streams, worker isolates, and UI widget trees without lazy-loading side effects or proxy mutation.
    - **Deterministic Cascades**: Relations are managed explicitly via indexed UUID business foreign keys (`charkhStableId`) within atomic transactions (`writeTxn`).
 
 2. **Strict Separation: Record DTOs vs. Domain Entities**:
-   Storage classes defined in [`lib/src/core/storage/entities.dart`](file:///f:/dev/koscharkh/lib/src/core/storage/entities.dart) (`*Record`) are lightweight Data Transfer Objects representing physical Isar B-Tree tables. Feature repositories ([`CharkhRepository`](file:///f:/dev/koscharkh/lib/src/features/charkhs/data/charkh_repository.dart), [`DestinationLibraryRepository`](file:///f:/dev/koscharkh/lib/src/features/destinations/data/destination_library_repository.dart), [`ProfileRepository`](file:///f:/dev/koscharkh/lib/src/features/profile/data/profile_repository.dart), [`RouteCacheRepository`](file:///f:/dev/koscharkh/lib/src/features/routes/data/route_cache_repository.dart), [`ActiveRouteRepository`](file:///f:/dev/koscharkh/lib/src/features/routes/data/active_route_repository.dart), [`CharkhHistoryRepository`](file:///f:/dev/koscharkh/lib/src/features/routes/data/charkh_history_repository.dart)) encapsulate bidirectional mapping between `*Record` and pure domain entities.
+   Storage classes defined in [`lib/src/core/storage/entities.dart`](../../lib/src/core/storage/entities.dart) (`*Record`) are lightweight Data Transfer Objects representing physical Isar B-Tree tables. Feature repositories ([`CharkhRepository`](../../lib/src/features/charkhs/data/charkh_repository.dart), [`DestinationLibraryRepository`](../../lib/src/features/destinations/data/destination_library_repository.dart), [`ProfileRepository`](../../lib/src/features/profile/data/profile_repository.dart), [`RouteCacheRepository`](../../lib/src/features/routes/data/route_cache_repository.dart), [`ActiveRouteRepository`](../../lib/src/features/routes/data/active_route_repository.dart), [`CharkhHistoryRepository`](../../lib/src/features/routes/data/charkh_history_repository.dart)) encapsulate bidirectional mapping between `*Record` and pure domain entities.
 
 3. **Dual Keying Strategy (Fast B-Tree ID vs. Global Business UUID)**:
    Every collection uses:
@@ -31,7 +31,7 @@ KosCharkh utilizes an embedded, zero-network, ACID-compliant local database powe
 
 ## 2. Complete Entity Schema Catalog
 
-All physical schemas are declared in [`lib/src/core/storage/entities.dart`](file:///f:/dev/koscharkh/lib/src/core/storage/entities.dart) and compiled into [`lib/src/core/storage/entities.g.dart`](file:///f:/dev/koscharkh/lib/src/core/storage/entities.g.dart).
+All physical schemas are declared in [`lib/src/core/storage/entities.dart`](../../lib/src/core/storage/entities.dart) and compiled into [`lib/src/core/storage/entities.g.dart`](../../lib/src/core/storage/entities.g.dart).
 
 ```
 +----------------------------------------------------------------------------------------------------+
@@ -53,7 +53,7 @@ All physical schemas are declared in [`lib/src/core/storage/entities.dart`](file
 
 ### 2.1 `ProfileRecord` (User Profile Singleton)
 Persists the local user's personal profile information. KosCharkh is a single-tenant application; exactly one profile record exists.
-- **Source**: [`ProfileRecord`](file:///f:/dev/koscharkh/lib/src/core/storage/entities.dart#L5-L11)
+- **Source**: [`ProfileRecord`](../../lib/src/core/storage/entities.dart#L6-L11)
 - **Fields**:
   - `Id id = 1`: **Fixed singleton primary key**. Developers **MUST NOT** assign `Isar.autoIncrement`.
   - `String firstName = ''`: User's given name.
@@ -62,7 +62,7 @@ Persists the local user's personal profile information. KosCharkh is a single-te
 
 ### 2.2 `CharkhRecord` (Walking Route Definition)
 Represents the header metadata for a user walking route ("Charkh").
-- **Source**: [`CharkhRecord`](file:///f:/dev/koscharkh/lib/src/core/storage/entities.dart#L13-L25)
+- **Source**: [`CharkhRecord`](../../lib/src/core/storage/entities.dart#L14-L25)
 - **Fields**:
   - `Id id = Isar.autoIncrement`: Fast internal 64-bit integer identifier.
   - `@Index(unique: true, replace: true) late String stableId`: Globally unique business key (e.g., `'charkh-1'` or UUIDv4).
@@ -74,11 +74,11 @@ Represents the header metadata for a user walking route ("Charkh").
 
 ### 2.3 `DestinationRecord` (Route-Bound Waypoint)
 Represents an ordered waypoint belonging strictly to a parent Charkh.
-- **Source**: [`DestinationRecord`](file:///f:/dev/koscharkh/lib/src/core/storage/entities.dart#L27-L43)
+- **Source**: [`DestinationRecord`](../../lib/src/core/storage/entities.dart#L28-L43)
 - **Fields**:
   - `Id id = Isar.autoIncrement`: Fast internal 64-bit integer identifier.
   - `@Index(unique: true, replace: true) late String stableId`: Globally unique waypoint key (`'$charkhStableId-$templateStableId'` or UUIDv4).
-  - `@Index() late String charkhStableId`: Foreign key pointing to the owning [`CharkhRecord.stableId`](file:///f:/dev/koscharkh/lib/src/core/storage/entities.dart#L18). Indexed for fast collection-wide joins and cascade deletions.
+  - `@Index() late String charkhStableId`: Foreign key pointing to the owning [`CharkhRecord.stableId`](../../lib/src/core/storage/entities.dart#L18). Indexed for fast collection-wide joins and cascade deletions.
   - `int position = 0`: 0-indexed ordinal sequence number ($0, 1, 2, \dots, N-1$). Dictates pedestrian navigation order.
   - `late String name`: Waypoint name or label.
   - `late String description`: Contextual waypoint note.
@@ -88,7 +88,7 @@ Represents an ordered waypoint belonging strictly to a parent Charkh.
 
 ### 2.4 `SavedDestinationRecord` (Reusable Destination Library)
 Represents a saved point of interest in the user's personal bookmark library.
-- **Source**: [`SavedDestinationRecord`](file:///f:/dev/koscharkh/lib/src/core/storage/entities.dart#L45-L59)
+- **Source**: [`SavedDestinationRecord`](../../lib/src/core/storage/entities.dart#L46-L59)
 - **Fields**:
   - `Id id = Isar.autoIncrement`: Fast internal 64-bit integer identifier.
   - `@Index(unique: true, replace: true) late String stableId`: Bookmark unique identifier.
@@ -107,10 +107,10 @@ Represents a saved point of interest in the user's personal bookmark library.
 
 ### 2.5 `RouteCacheRecord` (Calculated Polyline & Metrics Cache)
 Caches pedestrian directions, polyline coordinates, and estimated metrics calculated from the Mapbox Directions API or fallback line generator.
-- **Source**: [`RouteCacheRecord`](file:///f:/dev/koscharkh/lib/src/core/storage/entities.dart#L61-L74)
+- **Source**: [`RouteCacheRecord`](../../lib/src/core/storage/entities.dart#L62-L74)
 - **Fields**:
   - `Id id = Isar.autoIncrement`: Fast internal 64-bit integer identifier.
-  - `@Index(unique: true, replace: true) late String charkhStableId`: Business key enforcing a strict $1 \rightarrow 1$ cache relationship with [`CharkhRecord.stableId`](file:///f:/dev/koscharkh/lib/src/core/storage/entities.dart#L18).
+  - `@Index(unique: true, replace: true) late String charkhStableId`: Business key enforcing a strict $1 \rightarrow 1$ cache relationship with [`CharkhRecord.stableId`](../../lib/src/core/storage/entities.dart#L18).
   - `List<double> latitudes = []`: Serialized primitive array of polyline latitude coordinates.
   - `List<double> longitudes = []`: Serialized primitive array of polyline longitude coordinates.
   - `double distanceMeters = 0`: Total calculated pedestrian path distance in meters.
@@ -120,7 +120,7 @@ Caches pedestrian directions, polyline coordinates, and estimated metrics calcul
 
 ### 2.6 `ActiveRouteRecord` (Live Navigation Session Singleton)
 Tracks the in-flight state of the active walking navigation session.
-- **Source**: [`ActiveRouteRecord`](file:///f:/dev/koscharkh/lib/src/core/storage/entities.dart#L76-L84)
+- **Source**: [`ActiveRouteRecord`](../../lib/src/core/storage/entities.dart#L77-L84)
 - **Fields**:
   - `Id id = 1`: **Fixed singleton primary key**. KosCharkh permits at most one concurrent active route session.
   - `late String charkhStableId`: Business key referencing the currently active Charkh.
@@ -131,7 +131,7 @@ Tracks the in-flight state of the active walking navigation session.
 
 ### 2.7 `CharkhHistoryRecord` (Completed Route Audit Trail)
 An immutable historical audit record created when a walking route is completed or terminated.
-- **Source**: [`CharkhHistoryRecord`](file:///f:/dev/koscharkh/lib/src/core/storage/entities.dart#L86-L104)
+- **Source**: [`CharkhHistoryRecord`](../../lib/src/core/storage/entities.dart#L87-L104)
 - **Fields**:
   - `Id id = Isar.autoIncrement`: Fast internal 64-bit integer identifier.
   - `@Index(unique: true, replace: true) late String stableId`: Unique execution ID (`'history-${uuid.v4()}'`).
@@ -285,7 +285,7 @@ Isar executes writes inside atomic transaction blocks: `await isar.writeTxn(() a
 KosCharkh enforces three mandatory cascade patterns in repository code:
 
 ### 4.1 Save Charkh Mutation (Wipe-and-Replace Destination Indexing)
-When calling [`CharkhRepository.saveCharkh(Charkh charkh)`](file:///f:/dev/koscharkh/lib/src/features/charkhs/data/charkh_repository.dart#L31-L62), destinations **MUST** be completely replaced and re-indexed to prevent gaps, duplicates, or stale coordinates:
+When calling [`CharkhRepository.saveCharkh(Charkh charkh)`](../../lib/src/features/charkhs/data/charkh_repository.dart#L31-L62), destinations **MUST** be completely replaced and re-indexed to prevent gaps, duplicates, or stale coordinates:
 
 ```
 [saveCharkh Invoked]
@@ -302,7 +302,7 @@ When calling [`CharkhRepository.saveCharkh(Charkh charkh)`](file:///f:/dev/kosch
 ```
 
 ### 4.2 Delete Charkh Cascade Matrix
-When calling [`CharkhRepository.deleteCharkh(String stableId)`](file:///f:/dev/koscharkh/lib/src/features/charkhs/data/charkh_repository.dart#L64-L73), the transaction **MUST** atomically purge all child dependencies across three collections:
+When calling [`CharkhRepository.deleteCharkh(String stableId)`](../../lib/src/features/charkhs/data/charkh_repository.dart#L64-L73), the transaction **MUST** atomically purge all child dependencies across three collections:
 
 ```dart
 // Mandatory Cascade Implementation in CharkhRepository
@@ -331,7 +331,7 @@ Future<void> deleteCharkh(String stableId) async {
 > `CharkhHistoryRecord` entries referencing `charkhStableId` are **NOT** deleted when a Charkh is deleted. Historical records constitute an immutable audit log of completed walking sessions.
 
 ### 4.3 Active Route Session Lifecycle
-[`ActiveRouteRepository`](file:///f:/dev/koscharkh/lib/src/features/routes/data/active_route_repository.dart#L5-L36) manages the active navigation state using fixed singleton `id = 1`:
+[`ActiveRouteRepository`](../../lib/src/features/routes/data/active_route_repository.dart#L5-L36) manages the active navigation state using fixed singleton `id = 1`:
 - **Save Active Route**:
   ```dart
   Future<void> saveActiveRoute({
@@ -368,7 +368,7 @@ Future<void> deleteCharkh(String stableId) async {
 
 ## 5. Seeding & Database Bootstrap Lifecycle
 
-Database initialization occurs during the execution of [`AppBootstrapBloc._onStarted`](file:///f:/dev/koscharkh/lib/src/core/app/app_bootstrap_bloc.dart#L58-L96) prior to UI routing and widget tree mounting.
+Database initialization occurs during the execution of [`AppBootstrapBloc._onStarted`](../../lib/src/core/app/app_bootstrap_bloc.dart#L58-L96) prior to UI routing and widget tree mounting.
 
 ```mermaid
 sequenceDiagram
@@ -407,12 +407,12 @@ sequenceDiagram
 ### Seeding Invariants
 
 1. **Idempotency Guard**:
-   [`IsarSeedService.seedIfEmpty()`](file:///f:/dev/koscharkh/lib/src/core/storage/isar_seed_service.dart#L11-L50) checks existence before executing write transactions:
+   [`IsarSeedService.seedIfEmpty()`](../../lib/src/core/storage/isar_seed_service.dart#L11-L50) checks existence before executing write transactions:
    - `_seedProfileIfEmpty()`: Checks `await _isar.profileRecords.get(1) != null`.
    - `_seedSavedDestinationsIfEmpty()`: Checks `await _isar.savedDestinationRecords.count() > 0`.
    - Starter Charkhs: Checks `await _isar.charkhRecords.count() > 0`.
 2. **Deterministic Seed Content**:
-   Defined in [`lib/src/core/storage/seed_data.dart`](file:///f:/dev/koscharkh/lib/src/core/storage/seed_data.dart):
+   Defined in [`lib/src/core/storage/seed_data.dart`](../../lib/src/core/storage/seed_data.dart):
    - **Profile**: `firstName: 'realseyed'`, `lastName: ''`, `age: ''`.
    - **Saved Destination Templates**: 4 Manhattan landmarks in SoHo / Greenwich Village, NYC:
      - `dest-1`: `'First Destination'` ($40.7247^\circ\text{N}, -73.9970^\circ\text{W}$)
@@ -429,14 +429,14 @@ Isar requires static code generation to produce schema definitions (`*RecordSche
 
 ### Schema Modification Protocol
 
-Whenever [`lib/src/core/storage/entities.dart`](file:///f:/dev/koscharkh/lib/src/core/storage/entities.dart) is modified:
+Whenever [`lib/src/core/storage/entities.dart`](../../lib/src/core/storage/entities.dart) is modified:
 
 1. **Execute Code Generation**:
    ```bash
    dart run build_runner build --delete-conflicting-outputs
    ```
 2. **Analysis Options Exclusion**:
-   [`analysis_options.yaml`](file:///f:/dev/koscharkh/analysis_options.yaml#L12-L17) explicitly excludes all generated files from lint analysis:
+   [`analysis_options.yaml`](../../analysis_options.yaml#L12-L17) explicitly excludes all generated files from lint analysis:
    ```yaml
    analyzer:
      exclude:

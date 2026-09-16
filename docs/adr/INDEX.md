@@ -17,8 +17,8 @@ Each ADR progresses through the following standard lifecycle:
 
 | ID | Title | Status | Scope | Last Updated | Link |
 |---|---|---|---|---|---|
-| `0001` | Design System and UI Tokens Governance | `Accepted` | `lib/features/**/presentation/**` | 2026-09-16 | [`0001-design-system-and-ui-tokens.md`](file:///f:/dev/koscharkh/docs/adr/0001-design-system-and-ui-tokens.md) |
-| `0004` | Isar Persistence and Cascade Rules | `Accepted` | `lib/src/core/storage/**, lib/src/features/**/data/**` | 2026-09-16 | [`0004-isar-persistence-and-cascade-rules.md`](file:///f:/dev/koscharkh/docs/adr/0004-isar-persistence-and-cascade-rules.md) |
+| `0001` | Design System and UI Tokens Governance | `Accepted` | `lib/features/**/presentation/**` | 2026-09-16 | [`0001-design-system-and-ui-tokens.md`](0001-design-system-and-ui-tokens.md) |
+| `0004` | Isar Persistence and Cascade Rules | `Accepted` | `lib/src/core/storage/**, lib/src/features/**/data/**` | 2026-09-16 | [`0004-isar-persistence-and-cascade-rules.md`](0004-isar-persistence-and-cascade-rules.md) |
 
 ---
 

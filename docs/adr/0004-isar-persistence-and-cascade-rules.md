@@ -15,7 +15,7 @@ tags: [database, isar, persistence, cascade]
 
 ## Context & Problem Statement
 
-KosCharkh utilizes embedded Isar NoSQL for offline-first local data storage. Because Isar relation wrappers (`IsarLink` / `IsarLinks`) are intentionally banned to maintain pure, immutable domain entities ([`Charkh`](file:///f:/dev/koscharkh/lib/src/features/charkhs/domain/charkh.dart), [`Destination`](file:///f:/dev/koscharkh/lib/src/features/destinations/domain/destination.dart), [`Profile`](file:///f:/dev/koscharkh/lib/src/features/profile/domain/profile.dart)), entity relationships rely on manual business foreign keys (`charkhStableId`).
+KosCharkh utilizes embedded Isar NoSQL for offline-first local data storage. Because Isar relation wrappers (`IsarLink` / `IsarLinks`) are intentionally banned to maintain pure, immutable domain entities ([`Charkh`](../../lib/src/features/charkhs/domain/charkh.dart), [`Destination`](../../lib/src/features/destinations/domain/destination.dart), [`Profile`](../../lib/src/features/profile/domain/profile.dart)), entity relationships rely on manual business foreign keys (`charkhStableId`).
 
 Without strict structural invariants and transaction discipline, this architecture risks critical failure modes:
 1. **Orphan Records & Ghost Data**: Deleting a `CharkhRecord` without purging associated `DestinationRecord` entries leaves dangling waypoints.
@@ -59,8 +59,8 @@ This ADR defines normative RFC 2119 directives governing persistence schemas, tr
 5.2. Domain entities **MUST NOT** use Isar collection decorators or mutable state.
 
 ### 6. Build Runner & Code Generation
-6.1. Any modification to [`lib/src/core/storage/entities.dart`](file:///f:/dev/koscharkh/lib/src/core/storage/entities.dart) **MUST** be followed by running `dart run build_runner build --delete-conflicting-outputs`.  
-6.2. The generated [`lib/src/core/storage/entities.g.dart`](file:///f:/dev/koscharkh/lib/src/core/storage/entities.g.dart) **MUST** be committed to version control in the exact same commit as `entities.dart`.
+6.1. Any modification to [`lib/src/core/storage/entities.dart`](../../lib/src/core/storage/entities.dart) **MUST** be followed by running `dart run build_runner build --delete-conflicting-outputs`.  
+6.2. The generated [`lib/src/core/storage/entities.g.dart`](../../lib/src/core/storage/entities.g.dart) **MUST** be committed to version control in the exact same commit as `entities.dart`.
 
 ---
 
