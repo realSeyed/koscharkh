@@ -8,7 +8,7 @@ This specification is normative for any AI coding agent extending, debugging, or
 
 ## 1. Architectural Role & Overview
 
-The navigation subsystem is orchestrated by [`ActiveMapBloc`](file:///f:/dev/koscharkh/lib/src/features/routes/application/active_route_bloc.dart#L352-L1104). It acts as the single source of truth for active route tracking, coordinating sensory streams, spatial projection mathematics, camera following modes, arrival state machines, and local persistence.
+The navigation subsystem is orchestrated by [`ActiveMapBloc`](../../lib/src/features/routes/application/active_route_bloc.dart#L352-L1104). It acts as the single source of truth for active route tracking, coordinating sensory streams, spatial projection mathematics, camera following modes, arrival state machines, and local persistence.
 
 ```
 +---------------------------------------------------------------------------------------------------+
@@ -64,13 +64,13 @@ The navigation subsystem is orchestrated by [`ActiveMapBloc`](file:///f:/dev/kos
 
 ### Component Boundaries & Dependency Inversion
 
-1. **[`CurrentLocationService`](file:///f:/dev/koscharkh/lib/src/features/locations/data/current_location_service.dart#L15-L80)**: Wraps `geolocator`. Emits raw [`LiveUserLocation`](file:///f:/dev/koscharkh/lib/src/features/locations/domain/live_user_location.dart#L5-L29) records configured with high accuracy (`LocationAccuracy.high`), a 12-second acquisition timeout, and a 2-meter spatial distance filter (`distanceFilter: 2`).
-2. **[`CompassHeadingService`](file:///f:/dev/koscharkh/lib/src/features/locations/data/compass_heading_service.dart#L5-L20)**: Wraps `flutter_compass`. Emits raw device magnetometer headings normalized to $[0, 360)^\circ$.
-3. **[`projectLocationOntoLeg`](file:///f:/dev/koscharkh/lib/src/features/routes/domain/walking_route_progress.dart#L73-L145)**: Pure, stateless mathematical transformation projecting WGS-84 coordinates onto a route polyline leg using an equirectangular local tangent plane approximation.
-4. **[`WalkingRouteProgressPolicy`](file:///f:/dev/koscharkh/lib/src/features/routes/domain/walking_route_progress.dart#L32-L71)**: Authoritative boundary defining numerical validation rules, sample counters, arrival clamping, and off-route excursion limits.
-5. **[`DirectionsService`](file:///f:/dev/koscharkh/lib/src/features/routes/data/directions_service.dart#L20-L59)**: Handles network requests to the Mapbox Directions API v5 (`mapbox/walking`) and generates proportional straight-line fallback routes via `buildFallbackRoute`.
-6. **[`ActiveRouteRepository`](file:///f:/dev/koscharkh/lib/src/features/routes/data/active_route_repository.dart#L5-L36)**: Manages persistence of in-flight active route state into local Isar storage (`ActiveRouteRecord`, fixed singleton `id = 1`).
-7. **[`CharkhHistoryRepository`](file:///f:/dev/koscharkh/lib/src/features/routes/data/charkh_history_repository.dart#L10-L62)**: Persists finalized route executions to local Isar storage upon user or countdown completion.
+1. **[`CurrentLocationService`](../../lib/src/features/locations/data/current_location_service.dart#L15-L80)**: Wraps `geolocator`. Emits raw [`LiveUserLocation`](../../lib/src/features/locations/domain/live_user_location.dart#L5-L29) records configured with high accuracy (`LocationAccuracy.high`), a 12-second acquisition timeout, and a 2-meter spatial distance filter (`distanceFilter: 2`).
+2. **[`CompassHeadingService`](../../lib/src/features/locations/data/compass_heading_service.dart#L5-L20)**: Wraps `flutter_compass`. Emits raw device magnetometer headings normalized to $[0, 360)^\circ$.
+3. **[`projectLocationOntoLeg`](../../lib/src/features/routes/domain/walking_route_progress.dart#L73-L145)**: Pure, stateless mathematical transformation projecting WGS-84 coordinates onto a route polyline leg using an equirectangular local tangent plane approximation.
+4. **[`WalkingRouteProgressPolicy`](../../lib/src/features/routes/domain/walking_route_progress.dart#L32-L71)**: Authoritative boundary defining numerical validation rules, sample counters, arrival clamping, and off-route excursion limits.
+5. **[`DirectionsService`](../../lib/src/features/routes/data/directions_service.dart#L20-L59)**: Handles network requests to the Mapbox Directions API v5 (`mapbox/walking`) and generates proportional straight-line fallback routes via `buildFallbackRoute`.
+6. **[`ActiveRouteRepository`](../../lib/src/features/routes/data/active_route_repository.dart#L5-L36)**: Manages persistence of in-flight active route state into local Isar storage (`ActiveRouteRecord`, fixed singleton `id = 1`).
+7. **[`CharkhHistoryRepository`](../../lib/src/features/routes/data/charkh_history_repository.dart#L10-L62)**: Persists finalized route executions to local Isar storage upon user or countdown completion.
 
 ### Sequence Flow: Sensor Ingestion to State Persistence
 
@@ -133,7 +133,7 @@ sequenceDiagram
 
 ## 2. Sensor Fusion & Heading Calculation
 
-KosCharkh implements a hybrid sensor fusion scheme in [`ActiveMapBloc`](file:///f:/dev/koscharkh/lib/src/features/routes/application/active_route_bloc.dart#L1137-L1234) that arbitrates between GPS Doppler velocity course and dead-reckoned geographic azimuth, smoothed with an exponential low-pass filter.
+KosCharkh implements a hybrid sensor fusion scheme in [`ActiveMapBloc`](../../lib/src/features/routes/application/active_route_bloc.dart#L1137-L1234) that arbitrates between GPS Doppler velocity course and dead-reckoned geographic azimuth, smoothed with an exponential low-pass filter.
 
 ### GPS Course vs. Magnetometer Heading Mechanics
 
@@ -155,7 +155,7 @@ bool _isUsableHeading(double? heading, double speedMetersPerSecond) {
    - `heading != null`
    - `heading.isFinite`
    - `speedMetersPerSecond >= 0.7 m/s` ($\approx 2.52\,\text{km/h}$).
-2. **Dead-Reckoned Bearing Fallback**: When GPS speed is $< 0.7\,\text{m/s}$ or GPS course is unavailable, [`_headingForLocation`](file:///f:/dev/koscharkh/lib/src/features/routes/application/active_route_bloc.dart#L1164-L1184) inspects spatial displacement from the previous recorded location:
+2. **Dead-Reckoned Bearing Fallback**: When GPS speed is $< 0.7\,\text{m/s}$ or GPS course is unavailable, [`_headingForLocation`](../../lib/src/features/routes/application/active_route_bloc.dart#L1164-L1184) inspects spatial displacement from the previous recorded location:
    - If `previousCoordinates == null`, returns `null`.
    - Displacement is evaluated via Haversine distance:
      $$d = \text{distanceMeters}(\mathbf{x}_{t-1}, \mathbf{x}_t)$$
@@ -175,7 +175,7 @@ Converting to degrees and normalizing to the half-open interval $[0, 360)^\circ$
 
 $$\theta_{\text{norm}} = \left(\left(\theta \times \frac{180}{\pi}\right) \pmod{360} + 360\right) \pmod{360}$$
 
-Implemented in [`_bearingBetween`](file:///f:/dev/koscharkh/lib/src/features/routes/application/active_route_bloc.dart#L1205-L1213):
+Implemented in [`_bearingBetween`](../../lib/src/features/routes/application/active_route_bloc.dart#L1205-L1213):
 ```dart
 double _bearingBetween(Coordinates from, Coordinates to) {
   final fromLat = _degreesToRadians(from.latitude);
@@ -199,7 +199,7 @@ The heading is updated via an exponential single-pole low-pass filter:
 
 $$\theta_{\text{smoothed}} = (from + \Delta\theta \times \alpha) \pmod{360}$$
 
-KosCharkh configures two distinct smoothing factors ($\alpha$) in [`ActiveMapBloc`](file:///f:/dev/koscharkh/lib/src/features/routes/application/active_route_bloc.dart#L1139-L1141):
+KosCharkh configures two distinct smoothing factors ($\alpha$) in [`ActiveMapBloc`](../../lib/src/features/routes/application/active_route_bloc.dart#L1139-L1141):
 
 | Channel | Constant | Weight ($\alpha$) | Rationale |
 |---|---|---|---|
@@ -208,7 +208,7 @@ KosCharkh configures two distinct smoothing factors ($\alpha$) in [`ActiveMapBlo
 
 ### Compass Deadband Filter
 
-To eliminate micro-flutter caused by electronic device magnetometer noise while held stationary, [`_onCompassHeadingChanged`](file:///f:/dev/koscharkh/lib/src/features/routes/application/active_route_bloc.dart#L742-L765) applies a deadband threshold:
+To eliminate micro-flutter caused by electronic device magnetometer noise while held stationary, [`_onCompassHeadingChanged`](../../lib/src/features/routes/application/active_route_bloc.dart#L742-L765) applies a deadband threshold:
 
 $$|\Delta\theta| < 0.6^\circ \quad (\text{`_minimumCompassHeadingDeltaDegrees`})$$
 
@@ -218,7 +218,7 @@ Any compass delta below $0.6^\circ$ is dropped immediately without updating `dev
 
 ## 3. Cartesian Route Leg Projection (`projectLocationOntoLeg`)
 
-High-rate perpendicular projection in WGS-84 spherical space is computationally heavy. KosCharkh implements a local tangent plane equirectangular approximation in [`projectLocationOntoLeg`](file:///f:/dev/koscharkh/lib/src/features/routes/domain/walking_route_progress.dart#L73-L145).
+High-rate perpendicular projection in WGS-84 spherical space is computationally heavy. KosCharkh implements a local tangent plane equirectangular approximation in [`projectLocationOntoLeg`](../../lib/src/features/routes/domain/walking_route_progress.dart#L73-L145).
 
 ### Tangent Plane Coordinate Transformation
 
@@ -267,7 +267,7 @@ Each leg polyline consists of $M$ points defining $M-1$ segments. For segment $i
 
 ### Multi-Leg Route Progress (`_remainingRouteProgress`)
 
-When navigating a multi-stop Charkh, the active leg's projection is composed with downstream legs in [`_remainingRouteProgress`](file:///f:/dev/koscharkh/lib/src/features/routes/application/active_route_bloc.dart#L1106-L1123):
+When navigating a multi-stop Charkh, the active leg's projection is composed with downstream legs in [`_remainingRouteProgress`](../../lib/src/features/routes/application/active_route_bloc.dart#L1106-L1123):
 
 $$f_{\text{rem}} = \text{clamp}(1.0 - \text{projection.progress}, 0.0, 1.0)$$
 $$D_{\text{remaining}} = \left(\text{leg}_{\text{active}}.\text{distanceMeters} \times f_{\text{rem}}\right) + \sum_{k = \text{active} + 1}^{N-1} \text{leg}_k.\text{distanceMeters}$$
@@ -313,7 +313,7 @@ To prevent premature waypoint arrival or false-positive destination advancement 
 
 ### Location Reliability Filter
 
-A GPS fix is rejected prior to arrival evaluation if it violates [`WalkingRouteProgressPolicy.isReliable`](file:///f:/dev/koscharkh/lib/src/features/routes/domain/walking_route_progress.dart#L47-L59):
+A GPS fix is rejected prior to arrival evaluation if it violates [`WalkingRouteProgressPolicy.isReliable`](../../lib/src/features/routes/domain/walking_route_progress.dart#L47-L59):
 - `!location.accuracyMeters.isFinite || location.accuracyMeters < 0`
 - `location.accuracyMeters > 25.0 m` (`maximumReliableAccuracyMeters`)
 - $|t_{\text{now}} - t_{\text{sample}}| > 12\,\text{s}$ (`maximumLocationAge`)
@@ -340,7 +340,7 @@ $$\land \quad d_{\text{direct}} \le 22.0\,\text{m} \quad (\text{`endpointPassRad
 
 1. **Candidate Verification**: An arrival candidate must persist across **2 consecutive valid samples** (`arrivalConfirmationSamples = 2`).
 2. **Hysteresis Exit Boundary**: If the direct distance to the destination increases to $d_{\text{direct}} \ge 24.0\,\text{m}$ (`arrivalExitRadiusMeters`), `_arrivalCandidateSamples` is immediately reset to `0`.
-3. **Advancement Execution** ([`_advanceToNextDestination`](file:///f:/dev/koscharkh/lib/src/features/routes/application/active_route_bloc.dart#L902-L952)):
+3. **Advancement Execution** ([`_advanceToNextDestination`](../../lib/src/features/routes/application/active_route_bloc.dart#L902-L952)):
    - Resets `_arrivalCandidateSamples = 0` and `_offRouteSamples = 0`.
    - Increments `currentDestinationIndex += 1`.
    - If `currentDestinationIndex >= destinations.length`:
@@ -394,14 +394,14 @@ An off-route state is declared **only when $\text{\_offRouteSamples} \ge 3$** (`
 
 ### Reroute Cooldown & Concurrency Guard
 
-When 3 consecutive off-route samples are confirmed, [`_requestReroute`](file:///f:/dev/koscharkh/lib/src/features/routes/application/active_route_bloc.dart#L954-L970) enforces two rate-limiting constraints:
+When 3 consecutive off-route samples are confirmed, [`_requestReroute`](../../lib/src/features/routes/application/active_route_bloc.dart#L954-L970) enforces two rate-limiting constraints:
 1. **Concurrency Mutex**: `_isRerouting` boolean guard prevents concurrent asynchronous requests.
 2. **Temporal Cooldown**: Reroute is rejected if:
    $$t_{\text{now}} - t_{\text{lastReroute}} < 12\,\text{s} \quad (\text{`WalkingRouteProgressPolicy.rerouteCooldown`})$$
 
 ### Leg Re-Anchoring Logic
 
-When a reroute request succeeds ([`_onRerouteRequested`](file:///f:/dev/koscharkh/lib/src/features/routes/application/active_route_bloc.dart#L972-L1028)):
+When a reroute request succeeds ([`_onRerouteRequested`](../../lib/src/features/routes/application/active_route_bloc.dart#L972-L1028)):
 1. The new route is calculated starting from the pedestrian's instantaneous location $\mathbf{x}_{\text{user}}$ to all remaining unvisited destinations:
    $$\text{Coordinates} = [\mathbf{x}_{\text{user}}, \mathbf{D}_{\text{destIndex}}, \mathbf{D}_{\text{destIndex}+1}, \dots, \mathbf{D}_{N-1}]$$
 2. **Race Guard**: The response is validated to ensure `event.destinationIndex == state.currentDestinationIndex`. If the user reached a destination during the API roundtrip, the stale reroute response is discarded.
@@ -415,7 +415,7 @@ When a reroute request succeeds ([`_onRerouteRequested`](file:///f:/dev/koschark
 
 ## 6. Fallback Routing & Proportional Duration Allocation
 
-When Mapbox API tokens are absent or network requests fail, [`buildFallbackRoute`](file:///f:/dev/koscharkh/lib/src/features/routes/data/directions_service.dart#L106-L157) generates a deterministic straight-line route.
+When Mapbox API tokens are absent or network requests fail, [`buildFallbackRoute`](../../lib/src/features/routes/data/directions_service.dart#L106-L157) generates a deterministic straight-line route.
 
 ### Duration Allocation Algorithm
 
@@ -449,7 +449,7 @@ _timer = Timer.periodic(
 );
 ```
 
-During [`_onTicked`](file:///f:/dev/koscharkh/lib/src/features/routes/application/active_route_bloc.dart#L541-L570):
+During [`_onTicked`](../../lib/src/features/routes/application/active_route_bloc.dart#L541-L570):
 1. Increments `elapsedSeconds += 1`.
 2. **Periodic Persistence**: State is saved to Isar (`ActiveRouteRecord`, ID = 1) every 5 seconds:
    $$\text{elapsedSeconds} \pmod 5 = 0 \quad (\text{`_activeRoutePersistenceIntervalSeconds`})$$
@@ -495,15 +495,15 @@ panelState = expanded
 
 1. **Auto-Finish Countdown**: When reaching the final waypoint, the state transitions to `ActiveMapFinishStatus.prompting` with `finishCountdownSeconds = 10` (`_finishCountdownSeconds`).
 2. **User Dismissal**: If dismissed (`ActiveMapFinishDismissed`), `finishStatus` returns to `running`, countdown is stopped, and `finishPromptDismissed` is set to `true`.
-3. **Record Finalization** ([`_recordCompletion`](file:///f:/dev/koscharkh/lib/src/features/routes/application/active_route_bloc.dart#L1054-L1095)):
+3. **Record Finalization** ([`_recordCompletion`](../../lib/src/features/routes/application/active_route_bloc.dart#L1054-L1095)):
    - Guard against duplicate recording: `if (state.finishStatus == ActiveMapFinishStatus.recorded) return;`.
-   - Reads current user profile from [`ProfileRepository.getProfile`](file:///f:/dev/koscharkh/lib/src/features/profile/data/profile_repository.dart#L12-L22).
+   - Reads current user profile from [`ProfileRepository.getProfile`](../../lib/src/features/profile/data/profile_repository.dart#L12-L22).
    - Resolves display name via `_profileDisplayName(firstName, lastName)`.
-   - Appends completion record to Isar via [`CharkhHistoryRepository.recordCompletedCharkh`](file:///f:/dev/koscharkh/lib/src/features/routes/data/charkh_history_repository.dart#L21-L46).
-   - Deletes active route record via [`ActiveRouteRepository.clearActiveRoute`](file:///f:/dev/koscharkh/lib/src/features/routes/data/active_route_repository.dart#L31-L35).
+   - Appends completion record to Isar via [`CharkhHistoryRepository.recordCompletedCharkh`](../../lib/src/features/routes/data/charkh_history_repository.dart#L21-L46).
+   - Deletes active route record via [`ActiveRouteRepository.clearActiveRoute`](../../lib/src/features/routes/data/active_route_repository.dart#L31-L35).
    - Cancels the 1 Hz periodic ticker.
    - Emits `finishStatus: ActiveMapFinishStatus.recorded`.
-4. **BLoC Disposal** ([`close()`](file:///f:/dev/koscharkh/lib/src/features/routes/application/active_route_bloc.dart#L1098-L1103)):
+4. **BLoC Disposal** ([`close()`](../../lib/src/features/routes/application/active_route_bloc.dart#L1098-L1103)):
    - Cancels `_timer`.
    - Cancels `_locationSubscription` (`StreamSubscription<LiveUserLocation>`).
    - Cancels `_headingSubscription` (`StreamSubscription<double>`).
