@@ -82,20 +82,20 @@ The following table documents the proprietary UI components and the standard Flu
 
 | Component | Source Path | Supersedes | Role & Implementation Contract |
 |---|---|---|---|
-| `AppScreen` | [`lib/src/core/widgets/components.dart`](file:///f:/dev/koscharkh/lib/src/core/widgets/components.dart#L50-L70) | `Scaffold`, `SafeArea`, `Padding` | Universal screen shell. Configures `scaffoldBackgroundColor` from `context.colors.surface`, wraps body in `SafeArea` (toggleable), and enforces default `EdgeInsets.symmetric(horizontal: 24)`. |
-| `HeaderWithBack` | [`lib/src/core/widgets/components.dart`](file:///f:/dev/koscharkh/lib/src/core/widgets/components.dart#L72-L102) | `AppBar` | Standardized header. Features a 44x44dp hit-target back button (`KosAssets.arrowBack`), vertical padding (top: 28dp, bottom: 20dp), and title in `textTheme.titleLarge`. |
-| `KosButton` | [`lib/src/core/widgets/components.dart`](file:///f:/dev/koscharkh/lib/src/core/widgets/components.dart#L106-L170) | `ElevatedButton`, `FilledButton`, `OutlinedButton`, `TextButton` | Universal action button. Default height 51dp (customizable to 34dp for inline card actions, 56dp for CTAs), `BorderRadius.zero`, full-width or sized. Supports `KosButtonVariant` (`primary`, `secondary`, `danger`). |
-| `IconSquareButton` | [`lib/src/core/widgets/components.dart`](file:///f:/dev/koscharkh/lib/src/core/widgets/components.dart#L172-L205) | `IconButton`, `FloatingActionButton` | 51x51dp square action button with `Material` + `InkWell`. Zero border radius. Used for inline shortcuts (e.g. AI suggestion lightning bolt, GPS re-center). |
-| `KosTextInput` | [`lib/src/core/widgets/components.dart`](file:///f:/dev/koscharkh/lib/src/core/widgets/components.dart#L207-L280) | `TextField`, `TextFormField` | Single-line form input. Fixed height 51dp, `surfaceMuted` background, no borders (`InputBorder.none`), `primary` cursor, `bodyMedium` text style, internal controller/focus node lifecycle handling. |
-| `FieldLabel` | [`lib/src/core/widgets/components.dart`](file:///f:/dev/koscharkh/lib/src/core/widgets/components.dart#L282-L294) | `Text` | Standard form field label. Renders in `textTheme.labelLarge` with 8dp bottom padding. Precedes every `KosTextInput`. |
-| `ErrorCaption` | [`lib/src/core/widgets/components.dart`](file:///f:/dev/koscharkh/lib/src/core/widgets/components.dart#L296-L316) | Inline error text | Displays field and form-level validation errors. Renders `bodySmall` styled with `context.colors.error`. Auto-collapses to `SizedBox.shrink()` when message is null or empty. |
-| `KosBottomNav` | [`lib/src/core/widgets/components.dart`](file:///f:/dev/koscharkh/lib/src/core/widgets/components.dart#L458-L496) | `NavigationBar`, `BottomNavigationBar` | Fixed-height (72dp) bottom navigation bar integrated with `StatefulShellRoute`. Displays `KosAssets.home`, `KosAssets.explore`, and `KosAssets.account` icons with active/muted color tinting. |
-| `KosSvgIcon` | [`lib/src/core/widgets/components.dart`](file:///f:/dev/koscharkh/lib/src/core/widgets/components.dart#L30-L48) | `SvgPicture.asset`, `Icon` | Standard vector icon renderer. Enforces asset resolution from `KosAssets`, size constraints (default 24dp), and `BlendMode.srcIn` color filtering. |
-| `KosAssets` | [`lib/src/core/widgets/components.dart`](file:///f:/dev/koscharkh/lib/src/core/widgets/components.dart#L8-L28) | String asset paths | Centralized constants repository mapping SVG assets in `design_files/Icons/`. |
-| `CharkhCard` | [`lib/src/core/widgets/components.dart`](file:///f:/dev/koscharkh/lib/src/core/widgets/components.dart#L318-L377) | `Card`, `ListTile` | Canonical card widget for charkh items. Renders name, duration, description, and action button bar (Start [77x34 primary], Edit [77x34 secondary], Delete [87x34 danger]). |
-| `DestinationCard` | [`lib/src/core/widgets/components.dart`](file:///f:/dev/koscharkh/lib/src/core/widgets/components.dart#L393-L456) | `ListTile` | 56dp fixed-height row card for destinations with inline Edit button and circular Delete icon button. |
-| `confirmDestructiveAction` | [`lib/src/core/widgets/components.dart`](file:///f:/dev/koscharkh/lib/src/core/widgets/components.dart#L498-L527) | `showDialog` + `AlertDialog` | Asynchronous modal dialog helper for delete and reset confirmations. Renders `surfaceMuted` dialog with cancellation and `error`-colored confirmation. |
-| `KosMap` | [`lib/src/core/map/kos_map.dart`](file:///f:/dev/koscharkh/lib/src/core/map/kos_map.dart#L15-L181) | Raw `FlutterMap` | Dedicated map renderer. Features `DarkMapBackdropPainter` fallback grid, emerald vector polyline rendering (`green500` @ 0.92 alpha, strokeWidth 7), dynamic marker layers, and camera controller bindings. |
+| `AppScreen` | [`lib/src/core/widgets/components.dart`](../../lib/src/core/widgets/components.dart#L50-L70) | `Scaffold`, `SafeArea`, `Padding` | Universal screen shell. Configures `scaffoldBackgroundColor` from `context.colors.surface`, wraps body in `SafeArea` (toggleable), and enforces default `EdgeInsets.symmetric(horizontal: 24)`. |
+| `HeaderWithBack` | [`lib/src/core/widgets/components.dart`](../../lib/src/core/widgets/components.dart#L72-L102) | `AppBar` | Standardized header. Features a 44x44dp hit-target back button (`KosAssets.arrowBack`), vertical padding (top: 28dp, bottom: 20dp), and title in `textTheme.titleLarge`. |
+| `KosButton` | [`lib/src/core/widgets/components.dart`](../../lib/src/core/widgets/components.dart#L106-L170) | `ElevatedButton`, `FilledButton`, `OutlinedButton`, `TextButton` | Universal action button. Default height 51dp (customizable to 34dp for inline card actions, 56dp for CTAs), `BorderRadius.zero`, full-width or sized. Supports `KosButtonVariant` (`primary`, `secondary`, `danger`). |
+| `IconSquareButton` | [`lib/src/core/widgets/components.dart`](../../lib/src/core/widgets/components.dart#L172-L205) | `IconButton`, `FloatingActionButton` | 51x51dp square action button with `Material` + `InkWell`. Zero border radius. Used for inline shortcuts (e.g. AI suggestion lightning bolt, GPS re-center). |
+| `KosTextInput` | [`lib/src/core/widgets/components.dart`](../../lib/src/core/widgets/components.dart#L207-L280) | `TextField`, `TextFormField` | Single-line form input. Fixed height 51dp, `surfaceMuted` background, no borders (`InputBorder.none`), `primary` cursor, `bodyMedium` text style, internal controller/focus node lifecycle handling. |
+| `FieldLabel` | [`lib/src/core/widgets/components.dart`](../../lib/src/core/widgets/components.dart#L282-L294) | `Text` | Standard form field label. Renders in `textTheme.labelLarge` with 8dp bottom padding. Precedes every `KosTextInput`. |
+| `ErrorCaption` | [`lib/src/core/widgets/components.dart`](../../lib/src/core/widgets/components.dart#L296-L316) | Inline error text | Displays field and form-level validation errors. Renders `bodySmall` styled with `context.colors.error`. Auto-collapses to `SizedBox.shrink()` when message is null or empty. |
+| `KosBottomNav` | [`lib/src/core/widgets/components.dart`](../../lib/src/core/widgets/components.dart#L458-L496) | `NavigationBar`, `BottomNavigationBar` | Fixed-height (72dp) bottom navigation bar integrated with `StatefulShellRoute`. Displays `KosAssets.home`, `KosAssets.explore`, and `KosAssets.account` icons with active/muted color tinting. |
+| `KosSvgIcon` | [`lib/src/core/widgets/components.dart`](../../lib/src/core/widgets/components.dart#L30-L48) | `SvgPicture.asset`, `Icon` | Standard vector icon renderer. Enforces asset resolution from `KosAssets`, size constraints (default 24dp), and `BlendMode.srcIn` color filtering. |
+| `KosAssets` | [`lib/src/core/widgets/components.dart`](../../lib/src/core/widgets/components.dart#L8-L28) | String asset paths | Centralized constants repository mapping SVG assets in `design_files/Icons/`. |
+| `CharkhCard` | [`lib/src/core/widgets/components.dart`](../../lib/src/core/widgets/components.dart#L318-L377) | `Card`, `ListTile` | Canonical card widget for charkh items. Renders name, duration, description, and action button bar (Start [77x34 primary], Edit [77x34 secondary], Delete [87x34 danger]). |
+| `DestinationCard` | [`lib/src/core/widgets/components.dart`](../../lib/src/core/widgets/components.dart#L393-L456) | `ListTile` | 56dp fixed-height row card for destinations with inline Edit button and circular Delete icon button. |
+| `confirmDestructiveAction` | [`lib/src/core/widgets/components.dart`](../../lib/src/core/widgets/components.dart#L498-L527) | `showDialog` + `AlertDialog` | Asynchronous modal dialog helper for delete and reset confirmations. Renders `surfaceMuted` dialog with cancellation and `error`-colored confirmation. |
+| `KosMap` | [`lib/src/core/map/kos_map.dart`](../../lib/src/core/map/kos_map.dart#L15-L181) | Raw `FlutterMap` | Dedicated map renderer. Features `DarkMapBackdropPainter` fallback grid, emerald vector polyline rendering (`green500` @ 0.92 alpha, strokeWidth 7), dynamic marker layers, and camera controller bindings. |
 
 ---
 
@@ -189,7 +189,7 @@ Exposed via `Theme.of(context).textTheme`. All styles utilize `GoogleFonts.jetBr
 The codebase establishes three distinct structural patterns for screen presentation:
 
 ### Pattern A: Standard Form & Content Screen
-Used by [`CharkhFormScreen`](file:///f:/dev/koscharkh/lib/src/features/charkhs/presentation/charkh_form_screen.dart), [`DestinationFormScreen`](file:///f:/dev/koscharkh/lib/src/features/destinations/presentation/destination_form_screen.dart), and [`EditProfileScreen`](file:///f:/dev/koscharkh/lib/src/features/profile/presentation/edit_profile_screen.dart).
+Used by [`CharkhFormScreen`](../../lib/src/features/charkhs/presentation/charkh_form_screen.dart), [`DestinationFormScreen`](../../lib/src/features/destinations/presentation/destination_form_screen.dart), and [`EditProfileScreen`](../../lib/src/features/profile/presentation/edit_profile_screen.dart).
 
 ```dart
 AppScreen(
@@ -218,14 +218,14 @@ AppScreen(
 ```
 
 ### Pattern B: Root Dashboard / Tab Screen
-Used by [`CharkhsScreen`](file:///f:/dev/koscharkh/lib/src/features/charkhs/presentation/charkhs_screen.dart) and [`AccountScreen`](file:///f:/dev/koscharkh/lib/src/features/profile/presentation/account_screen.dart).
+Used by [`CharkhsScreen`](../../lib/src/features/charkhs/presentation/charkhs_screen.dart) and [`AccountScreen`](../../lib/src/features/profile/presentation/account_screen.dart).
 
 - Root structure wrapped in `SafeArea` with custom top padding (`padding: EdgeInsets.fromLTRB(24, 44, 24, 0)`).
 - Scroll view with bottom padding (`padding: EdgeInsets.only(bottom: 96)`) to clear the fixed bottom navigation bar (`KosBottomNav`, 72dp) or floating action controls.
 - Primary floating action button positioned at bottom-right (`Positioned(right: 0, bottom: 22, child: KosButton(text: '+ Add', width: 140, height: 56))`).
 
 ### Pattern C: Full-Bleed Map View with Bottom Drawer
-Used by [`ActiveMapScreen`](file:///f:/dev/koscharkh/lib/src/features/routes/presentation/active_map_screen.dart) and [`SelectLocationScreen`](file:///f:/dev/koscharkh/lib/src/features/locations/presentation/select_location_screen.dart).
+Used by [`ActiveMapScreen`](../../lib/src/features/routes/presentation/active_map_screen.dart) and [`SelectLocationScreen`](../../lib/src/features/locations/presentation/select_location_screen.dart).
 
 - Raw `Scaffold(backgroundColor: context.colors.surface)`.
 - `Stack(fit: StackFit.expand)` containing:
